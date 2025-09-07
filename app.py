@@ -103,14 +103,14 @@ def employee_login():
         lon = request.form.get('longitude')
         print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon}")
         
-        # Enforce geofence for employee login
-        if not is_within_office_geofence(lat, lon):
-            flash('Access denied: You are not within any office location.', 'error')
-            return render_template('employee_login.html', 
-                                 office_locations=Config.OFFICE_LOCATIONS,
-                                 office_lat=Config.OFFICE_LATITUDE, 
-                                 office_lng=Config.OFFICE_LONGITUDE, 
-                                 office_radius=Config.OFFICE_RADIUS_METERS)
+        # Enforce geofence for employee login - TEMPORARILY DISABLED
+        # if not is_within_office_geofence(lat, lon):
+        #     flash('Access denied: You are not within any office location.', 'error')
+        #     return render_template('employee_login.html', 
+        #                          office_locations=Config.OFFICE_LOCATIONS,
+        #                          office_lat=Config.OFFICE_LATITUDE, 
+        #                          office_lng=Config.OFFICE_LONGITUDE, 
+        #                          office_radius=Config.OFFICE_RADIUS_METERS)
         
         employee = FirebaseEmployee.find_by_employee_id(employee_id)
         
@@ -147,10 +147,10 @@ def employee_signin():
         lon = request.form.get('longitude')
         print(f"DEBUG Route: /employee/signin POST lat={lat} lon={lon}")
         
-        # Enforce geofence for sign-in
-        if not is_within_office_geofence(lat, lon):
-            flash('Sign-in denied: You are not within any office location.', 'error')
-            return redirect(url_for('employee_dashboard'))
+        # Enforce geofence for sign-in - TEMPORARILY DISABLED
+        # if not is_within_office_geofence(lat, lon):
+        #     flash('Sign-in denied: You are not within any office location.', 'error')
+        #     return redirect(url_for('employee_dashboard'))
         
         today = datetime.now().date()
         existing_attendance = FirebaseAttendance.find_by_employee_and_date(employee_id, today)
@@ -209,9 +209,10 @@ def employee_signout():
     lon = request.form.get('longitude')
     print(f"DEBUG Route: /employee/signout POST lat={lat} lon={lon}")
     
-    if not is_within_office_geofence(lat, lon):
-        flash('Sign-out denied: You are not within any office location.', 'error')
-        return redirect(url_for('employee_dashboard'))
+    # Enforce geofence for sign-out - TEMPORARILY DISABLED
+    # if not is_within_office_geofence(lat, lon):
+    #     flash('Sign-out denied: You are not within any office location.', 'error')
+    #     return redirect(url_for('employee_dashboard'))
 
     employee_id = current_user.employee_id
     today = datetime.now().date()
