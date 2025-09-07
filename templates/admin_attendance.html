@@ -91,6 +91,7 @@
                                 <th>Employee ID</th>
                                 <th>Name</th>
                                 <th>Department</th>
+                                <th>Work Location</th>
                                 <th>Sign In</th>
                                 <th>Sign Out</th>
                                 <th>Total Hours</th>
@@ -120,6 +121,17 @@
                                             <span class="badge bg-secondary">{{ employee.department }}</span>
                                         {% endif %}
                                     {% endfor %}
+                                </td>
+                                <td>
+                                    {% if record.work_location == 'home' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-home me-1"></i>Work from Home
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-building me-1"></i>Office
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if record.sign_in_time %}

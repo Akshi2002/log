@@ -177,6 +177,7 @@ class FirebaseAttendance:
         self.sign_in_time = attendance_data.get('sign_in_time')  # ISO string or datetime
         self.sign_out_time = attendance_data.get('sign_out_time')  # ISO string or datetime
         self.total_hours = attendance_data.get('total_hours')
+        self.work_location = attendance_data.get('work_location', 'office')  # 'office' or 'home'
         self.created_at = attendance_data.get('created_at')
     
     @staticmethod
@@ -234,7 +235,8 @@ class FirebaseAttendance:
             'date': self.date,
             'sign_in_time': sign_in_time_str,
             'sign_out_time': sign_out_time_str,
-            'total_hours': self.total_hours
+            'total_hours': self.total_hours,
+            'work_location': self.work_location
         }
         
         try:

@@ -101,16 +101,20 @@ def employee_login():
         password = request.form.get('password')
         lat = request.form.get('latitude')
         lon = request.form.get('longitude')
-        print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon}")
+        work_from_home = request.form.get('work_from_home') == '1'
+        print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon} work_from_home={work_from_home}")
         
-        # Enforce geofence for employee login - TEMPORARILY DISABLED
-        # if not is_within_office_geofence(lat, lon):
-        #     flash('Access denied: You are not within any office location.', 'error')
-        #     return render_template('employee_login.html', 
-        #                          office_locations=Config.OFFICE_LOCATIONS,
-        #                          office_lat=Config.OFFICE_LATITUDE, 
-        #                          office_lng=Config.OFFICE_LONGITUDE, 
-        #                          office_radius=Config.OFFICE_RADIUS_METERS)
+        # Enforce geofence for employee login - only if not working from home
+        if not work_from_home:
+            # Geofence check for office workers - TEMPORARILY DISABLED
+            # if not is_within_office_geofence(lat, lon):
+            #     flash('Access denied: You are not within any office location.', 'error')
+            #     return render_template('employee_login.html', 
+            #                          office_locations=Config.OFFICE_LOCATIONS,
+            #                          office_lat=Config.OFFICE_LATITUDE, 
+            #                          office_lng=Config.OFFICE_LONGITUDE, 
+            #                          office_radius=Config.OFFICE_RADIUS_METERS)
+            pass
         
         employee = FirebaseEmployee.find_by_employee_id(employee_id)
         
@@ -125,7 +129,11 @@ def employee_login():
         # Login the employee
         login_user(employee)
         
-        flash(f'Welcome {employee.name}! You have successfully logged in.', 'success')
+        # Store work location preference in session
+        session['work_from_home'] = work_from_home
+        
+        location_msg = "from home" if work_from_home else "from office"
+        flash(f'Welcome {employee.name}! You have successfully logged in {location_msg}.', 'success')
         return redirect(url_for('employee_dashboard'))
     
     return render_template('employee_login.html', 
@@ -145,12 +153,16 @@ def employee_signin():
         employee_id = current_user.employee_id
         lat = request.form.get('latitude')
         lon = request.form.get('longitude')
-        print(f"DEBUG Route: /employee/signin POST lat={lat} lon={lon}")
+        work_from_home = session.get('work_from_home', False)
+        print(f"DEBUG Route: /employee/signin POST lat={lat} lon={lon} work_from_home={work_from_home}")
         
-        # Enforce geofence for sign-in - TEMPORARILY DISABLED
-        # if not is_within_office_geofence(lat, lon):
-        #     flash('Sign-in denied: You are not within any office location.', 'error')
-        #     return redirect(url_for('employee_dashboard'))
+        # Enforce geofence for sign-in - only if not working from home
+        if not work_from_home:
+            # Geofence check for office workers - TEMPORARILY DISABLED
+            # if not is_within_office_geofence(lat, lon):
+            #     flash('Sign-in denied: You are not within any office location.', 'error')
+            #     return redirect(url_for('employee_dashboard'))
+            pass
         
         today = datetime.now().date()
         existing_attendance = FirebaseAttendance.find_by_employee_and_date(employee_id, today)
@@ -166,11 +178,13 @@ def employee_signin():
                 'date': today.strftime('%Y-%m-%d'),
                 'sign_in_time': datetime.now(),
                 'sign_out_time': None,
-                'total_hours': None
+                'total_hours': None,
+                'work_location': 'home' if work_from_home else 'office'
             })
         else:
             attendance = existing_attendance
             attendance.sign_in_time = datetime.now()
+            attendance.work_location = 'home' if work_from_home else 'office'
         
         print(f"DEBUG: Attempting to save attendance for {employee_id} on {today}")
         if attendance.save():
@@ -207,12 +221,16 @@ def employee_signout():
     # POST: perform geofence check and complete sign-out
     lat = request.form.get('latitude')
     lon = request.form.get('longitude')
-    print(f"DEBUG Route: /employee/signout POST lat={lat} lon={lon}")
+    work_from_home = session.get('work_from_home', False)
+    print(f"DEBUG Route: /employee/signout POST lat={lat} lon={lon} work_from_home={work_from_home}")
     
-    # Enforce geofence for sign-out - TEMPORARILY DISABLED
-    # if not is_within_office_geofence(lat, lon):
-    #     flash('Sign-out denied: You are not within any office location.', 'error')
-    #     return redirect(url_for('employee_dashboard'))
+    # Enforce geofence for sign-out - only if not working from home
+    if not work_from_home:
+        # Geofence check for office workers - TEMPORARILY DISABLED
+        # if not is_within_office_geofence(lat, lon):
+        #     flash('Sign-out denied: You are not within any office location.', 'error')
+        #     return redirect(url_for('employee_dashboard'))
+        pass
 
     employee_id = current_user.employee_id
     today = datetime.now().date()
