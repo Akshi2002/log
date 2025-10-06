@@ -13,7 +13,12 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
+                        <!-- Basic Information -->
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-user me-2"></i>Basic Information
+                        </h5>
+                        
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="employee_id" class="form-label">
@@ -60,20 +65,73 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
+                                <label for="mobile" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>
+                                    Mobile Number *
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="mobile" 
+                                       name="mobile" 
+                                       required 
+                                       placeholder="e.g., +1 234 567 8900"
+                                       pattern="[0-9\s\-\+\(\)]+">
+                            </div>
+                        </div>
+                        
+                        <!-- Professional Information -->
+                        <h5 class="mb-3 mt-4 text-primary">
+                            <i class="fas fa-briefcase me-2"></i>Professional Information
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label for="department" class="form-label">
                                     <i class="fas fa-building me-1"></i>
                                     Department *
                                 </label>
+                                <select class="form-select" id="department" name="department" required>
+                                    <option value="">Select Department</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Human Resources">Human Resources</option>
+                                    <option value="Finance">Finance</option>
+                                    <option value="Sales">Sales</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Operations">Operations</option>
+                                    <option value="Customer Service">Customer Service</option>
+                                    <option value="Research & Development">Research & Development</option>
+                                    <option value="Legal">Legal</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="position" class="form-label">
+                                    <i class="fas fa-user-tie me-1"></i>
+                                    Position/Job Title *
+                                </label>
                                 <input type="text" 
                                        class="form-control" 
-                                       id="department" 
-                                       name="department" 
+                                       id="position" 
+                                       name="position" 
                                        required 
-                                       placeholder="e.g., Information Technology, Sales, Marketing">
-                                <div class="form-text">Enter the department or designation for this employee</div>
+                                       placeholder="e.g., Software Developer, Sales Manager">
                             </div>
                         </div>
+                        
                         <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="hire_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Hire Date *
+                                </label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="hire_date" 
+                                       name="hire_date" 
+                                       required>
+                            </div>
+                            
                             <div class="col-md-6 mb-3">
                                 <label for="password" class="form-label">
                                     <i class="fas fa-lock me-1"></i>
@@ -85,6 +143,90 @@
                                        name="password" 
                                        required 
                                        placeholder="Enter password">
+                            </div>
+                        </div>
+                        
+                        <!-- Personal Information -->
+                        <h5 class="mb-3 mt-4 text-primary">
+                            <i class="fas fa-home me-2"></i>Personal Information
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label for="address" class="form-label">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    Address *
+                                </label>
+                                <textarea class="form-control" 
+                                          id="address" 
+                                          name="address" 
+                                          required 
+                                          rows="3" 
+                                          placeholder="Enter complete address including street, city, state, zip code"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- Emergency Contact -->
+                        <h5 class="mb-3 mt-4 text-primary">
+                            <i class="fas fa-phone-alt me-2"></i>Emergency Contact
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="emergency_contact" class="form-label">
+                                    <i class="fas fa-user-friends me-1"></i>
+                                    Emergency Contact Name *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="emergency_contact" 
+                                       name="emergency_contact" 
+                                       required 
+                                       placeholder="e.g., Jane Doe (Spouse) or Robert Smith (Father)">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="emergency_contact_phone" class="form-label">
+                                    <i class="fas fa-phone-square me-1"></i>
+                                    Emergency Contact Phone *
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="emergency_contact_phone" 
+                                       name="emergency_contact_phone" 
+                                       required 
+                                       placeholder="e.g., +1 234 567 8900"
+                                       pattern="[0-9\s\-\+\(\)]+">
+                            </div>
+                        </div>
+                        
+                        <!-- Profile Image -->
+                        <h5 class="mb-3 mt-4 text-primary">
+                            <i class="fas fa-image me-2"></i>Profile Picture
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="profile_image" class="form-label">
+                                    <i class="fas fa-camera me-1"></i>
+                                    Upload Profile Picture
+                                </label>
+                                <input type="file" 
+                                       class="form-control" 
+                                       id="profile_image" 
+                                       name="profile_image" 
+                                       accept="image/*">
+                                <div class="form-text">Upload a professional profile picture (JPG, PNG, GIF - Max 5MB)</div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="mt-3">
+                                    <img id="image_preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23E5E7EB'/%3E%3Ccircle cx='75' cy='60' r='20' fill='%239B9B9B'/%3E%3Cpath d='M35 90H115C100 101 100.5 95.5 75 110S35.5 107.5 35 90Z' fill='%239B9B9B'/%3E%3C/svg%3E" 
+                                         alt="Profile Preview" 
+                                         class="img-thumbnail" 
+                                         style="max-width: 150px; max-height: 150px; object-fit: cover; border: 2px solid #dee2e6;">
+                                    <div class="form-text mt-1">Profile Picture Preview</div>
+                                </div>
                             </div>
                         </div>
                         
@@ -114,7 +256,11 @@
                     <ul class="list-unstyled mb-0">
                         <li><i class="fas fa-check text-success me-2"></i>Employee ID must be unique and contain only letters and numbers</li>
                         <li><i class="fas fa-check text-success me-2"></i>Email address must be unique and in valid format</li>
-                        <li><i class="fas fa-check text-success me-2"></i>All fields are required</li>
+                        <li><i class="fas fa-check text-success me-2"></i>All fields marked with * are required</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Mobile numbers should be valid contact numbers</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Hire date cannot be in the future</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Profile picture is optional but recommended</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Emergency contact information is required for safety</li>
                         <li><i class="fas fa-check text-success me-2"></i>New employees will be automatically set as active</li>
                     </ul>
                 </div>
@@ -156,6 +302,109 @@ document.querySelector('form').addEventListener('submit', function(e) {
     if (!emailRegex.test(email)) {
         e.preventDefault();
         alert('Please enter a valid email address.');
+        return false;
+    }
+});
+
+// Image preview functionality
+document.getElementById('profile_image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('image_preview');
+    
+    if (file) {
+        // Validate file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            e.target.value = '';
+            return;
+        }
+        
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPG, PNG, GIF)');
+            e.target.value = '';
+            return;
+        }
+        
+        // Show loading state
+        preview.style.opacity = '0.5';
+        preview.src = ''; // Clear previous image
+        
+        // Create FileReader to preview image
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            preview.src = event.target.result;
+            // Add a smooth transition effect
+            preview.style.transition = 'opacity 0.3s ease-in-out';
+            preview.style.opacity = '1';
+            
+            // Show a brief success message
+            const formText = preview.nextElementSibling;
+            formText.textContent = '✓ Image loaded successfully';
+            formText.style.color = '#28a745';
+            
+            // Reset to original text after 2 seconds
+            setTimeout(() => {
+                formText.textContent = 'Profile Picture Preview';
+                formText.style.color = '';
+            }, 2000);
+        };
+        
+        reader.onerror = function() {
+            alert('Error reading the file. Please try again.');
+            e.target.value = '';
+        };
+        
+        reader.readAsDataURL(file);
+    } else {
+        // Reset to default avatar when no file is selected
+        preview.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23E5E7EB'/%3E%3Ccircle cx='75' cy='60' r='20' fill='%239B9B9B'/%3E%3Cpath d='M35 90H115C100 101 100.5 95.5 75 110S35.5 107.5 35 90Z' fill='%239B9B9B'/%3E%3C/svg%3E";
+    }
+});
+
+// Enhanced form validation for all new fields
+document.querySelector('form').addEventListener('submit', function(e) {
+    const employeeId = document.getElementById('employee_id').value.trim();
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const mobile = document.getElementById('mobile').value.trim();
+    const department = document.getElementById('department').value;
+    const position = document.getElementById('position').value.trim();
+    const hire_date = document.getElementById('hire_date').value;
+    const address = document.getElementById('address').value.trim();
+    const emergency_contact = document.getElementById('emergency_contact').value.trim();
+    const emergency_contact_phone = document.getElementById('emergency_contact_phone').value.trim();
+    
+    // Check all required fields
+    if (!employeeId || !name || !email || !mobile || !department || !position || 
+        !hire_date || !address || !emergency_contact || !emergency_contact_phone) {
+        e.preventDefault();
+        alert('Please fill in all required fields.');
+        return false;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        e.preventDefault();
+        alert('Please enter a valid email address.');
+        return false;
+    }
+    
+    // Mobile number validation
+    const mobileRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
+    if (!mobileRegex.test(mobile.replace(/\s/g, ''))) {
+        e.preventDefault();
+        alert('Please enter a valid mobile number.');
+        return false;
+    }
+    
+    // Hire date validation
+    const today = new Date().toISOString().split('T')[0];
+    if (hire_date > today) {
+        e.preventDefault();
+        alert('Hire date cannot be in the future.');
         return false;
     }
 });

@@ -13,7 +13,7 @@
                     </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="employee_id" class="form-label">
@@ -60,6 +60,72 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
+                                <label for="mobile" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>
+                                    Mobile Number *
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="mobile" 
+                                       name="mobile" 
+                                       required 
+                                       value="{{ employee.mobile }}"
+                                       placeholder="e.g., +1 234 567 8900"
+                                       pattern="[0-9\s\-\+\(\)]+">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="department" class="form-label">
+                                    <i class="fas fa-building me-1"></i>
+                                    Department *
+                                </label>
+                                <select class="form-select" id="department" name="department" required>
+                                    <option value="">Select Department</option>
+                                    <option value="Information Technology" {% if employee.department == 'Information Technology' %}selected{% endif %}>Information Technology</option>
+                                    <option value="Human Resources" {% if employee.department == 'Human Resources' %}selected{% endif %}>Human Resources</option>
+                                    <option value="Finance" {% if employee.department == 'Finance' %}selected{% endif %}>Finance</option>
+                                    <option value="Sales" {% if employee.department == 'Sales' %}selected{% endif %}>Sales</option>
+                                    <option value="Marketing" {% if employee.department == 'Marketing' %}selected{% endif %}>Marketing</option>
+                                    <option value="Operations" {% if employee.department == 'Operations' %}selected{% endif %}>Operations</option>
+                                    <option value="Customer Service" {% if employee.department == 'Customer Service' %}selected{% endif %}>Customer Service</option>
+                                    <option value="Research & Development" {% if employee.department == 'Research & Development' %}selected{% endif %}>Research & Development</option>
+                                    <option value="Legal" {% if employee.department == 'Legal' %}selected{% endif %}>Legal</option>
+                                    <option value="Other" {% if employee.department == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="position" class="form-label">
+                                    <i class="fas fa-user-tie me-1"></i>
+                                    Position/Job Title *
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="position" 
+                                       name="position" 
+                                       required 
+                                       value="{{ employee.position }}"
+                                       placeholder="e.g., Software Developer, Sales Manager">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="hire_date" class="form-label">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    Hire Date *
+                                </label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="hire_date" 
+                                       name="hire_date" 
+                                       required 
+                                       value="{{ employee.hire_date }}">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
                                 <label for="password" class="form-label">
                                     <i class="fas fa-key me-1"></i>
                                     Password (leave blank to keep unchanged)
@@ -75,23 +141,52 @@
                                     </button>
                                 </div>
                                 <div class="form-text">Admin can set a new password here. Existing password is hidden for security.</div>
-                              </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label for="address" class="form-label">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    Address *
+                                </label>
+                                <textarea class="form-control" 
+                                          id="address" 
+                                          name="address" 
+                                          required 
+                                          rows="3" 
+                                          placeholder="Enter complete address including street, city, state, zip code">{{ employee.address }}</textarea>
+                            </div>
                         </div>
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="department" class="form-label">
-                                    <i class="fas fa-building me-1"></i>
-                                    Department *
+                                <label for="emergency_contact" class="form-label">
+                                    <i class="fas fa-user-friends me-1"></i>
+                                    Emergency Contact Name *
                                 </label>
                                 <input type="text" 
                                        class="form-control" 
-                                       id="department" 
-                                       name="department" 
+                                       id="emergency_contact" 
+                                       name="emergency_contact" 
                                        required 
-                                       value="{{ employee.department }}"
-                                       placeholder="e.g., Information Technology, Sales, Marketing">
-                                <div class="form-text">Enter the department or designation for this employee</div>
+                                       value="{{ employee.emergency_contact }}"
+                                       placeholder="e.g., Jane Doe (Spouse) or Robert Smith (Father)">
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="emergency_contact_phone" class="form-label">
+                                    <i class="fas fa-phone-square me-1"></i>
+                                    Emergency Contact Phone *
+                                </label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="emergency_contact_phone" 
+                                       name="emergency_contact_phone" 
+                                       required 
+                                       value="{{ employee.emergency_contact_phone }}"
+                                       placeholder="e.g., +1 234 567 8900"
+                                       pattern="[0-9\s\-\+\(\)]+">
                             </div>
                         </div>
                         
@@ -120,7 +215,43 @@
                                     Employee Since
                                 </label>
                                 <div class="form-control-plaintext">
-                                    {{ employee.id }} (Auto-generated ID)
+                                    {% if employee.hire_date %}
+                                        {{ employee.hire_date }}
+                                    {% else %}
+                                        <span class="text-muted">Hire date not available</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Profile Image -->
+                        <h5 class="mb-3 mt-2 text-primary">
+                            <i class="fas fa-image me-2"></i>Profile Picture
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="profile_image" class="form-label">
+                                    <i class="fas fa-camera me-1"></i>
+                                    Upload New Picture
+                                </label>
+                                <input type="file" 
+                                       class="form-control" 
+                                       id="profile_image" 
+                                       name="profile_image" 
+                                       accept="image/*">
+                                <div class="form-text">JPG, PNG, GIF - Max 5MB</div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="remove_profile_image" name="remove_profile_image" value="1">
+                                    <label class="form-check-label" for="remove_profile_image">Remove current picture</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="mt-3">
+                                    <img id="image_preview" src="{% if employee.profile_image %}{{ url_for('static', filename=employee.profile_image) }}{% else %}data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23E5E7EB'/%3E%3Ctext x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239B9B9B' font-size='14' font-family='Arial'%3ENo Image%3C/text%3E%3C/svg%3E{% endif %}" 
+                                         alt="Profile Preview" 
+                                         class="img-thumbnail" 
+                                         style="max-width: 150px; max-height: 150px; object-fit: cover; border: 2px solid #dee2e6;">
+                                    <div class="form-text mt-1">Profile Picture Preview</div>
                                 </div>
                             </div>
                         </div>
@@ -153,9 +284,12 @@
                             <p><strong>Employee ID:</strong> {{ employee.employee_id }}</p>
                             <p><strong>Name:</strong> {{ employee.name }}</p>
                             <p><strong>Email:</strong> {{ employee.email }}</p>
+                            <p><strong>Mobile:</strong> {{ employee.mobile or 'Not provided' }}</p>
+                            <p><strong>Position:</strong> {{ employee.position or 'Not provided' }}</p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Department:</strong> {{ employee.department }}</p>
+                            <p><strong>Hire Date:</strong> {{ employee.hire_date or 'Not provided' }}</p>
                             <p><strong>Status:</strong> 
                                 {% if employee.is_active %}
                                     <span class="badge bg-success">Active</span>
@@ -163,9 +297,17 @@
                                     <span class="badge bg-danger">Inactive</span>
                                 {% endif %}
                             </p>
-                            <p><strong>Database ID:</strong> {{ employee.id }}</p>
+                            <p><strong>Emergency Contact:</strong> {{ employee.emergency_contact or 'Not provided' }}</p>
+                            <p><strong>Emergency Phone:</strong> {{ employee.emergency_contact_phone or 'Not provided' }}</p>
                         </div>
                     </div>
+                    {% if employee.address %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <p><strong>Address:</strong> {{ employee.address }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -177,11 +319,33 @@
 document.querySelector('form').addEventListener('submit', function(e) {
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
+    const mobile = document.getElementById('mobile').value.trim();
     const department = document.getElementById('department').value;
+    const position = document.getElementById('position').value.trim();
+    const hire_date = document.getElementById('hire_date').value;
+    const address = document.getElementById('address').value.trim();
+    const emergency_contact = document.getElementById('emergency_contact').value.trim();
+    const emergency_contact_phone = document.getElementById('emergency_contact_phone').value.trim();
     
-    if (!name || !email || !department) {
+    if (!name || !email || !mobile || !department || !position || !hire_date || 
+        !address || !emergency_contact || !emergency_contact_phone) {
         e.preventDefault();
         alert('Please fill in all required fields.');
+        return false;
+    }
+    
+    // Mobile number validation
+    const mobileRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
+    if (!mobileRegex.test(mobile.replace(/\s/g, ''))) {
+        e.preventDefault();
+        alert('Please enter a valid mobile number.');
+        return false;
+    }
+    
+    // Emergency contact phone validation
+    if (!mobileRegex.test(emergency_contact_phone.replace(/\s/g, ''))) {
+        e.preventDefault();
+        alert('Please enter a valid emergency contact phone number.');
         return false;
     }
     
@@ -209,6 +373,38 @@ if (toggleBtn && pwdInput) {
         pwdInput.setAttribute('type', type);
         this.querySelector('i').classList.toggle('fa-eye');
         this.querySelector('i').classList.toggle('fa-eye-slash');
+    });
+}
+
+// Image preview functionality
+const imageInput = document.getElementById('profile_image');
+const imagePreview = document.getElementById('image_preview');
+if (imageInput && imagePreview) {
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be less than 5MB');
+                e.target.value = '';
+                return;
+            }
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!validTypes.includes(file.type)) {
+                alert('Please select a valid image file (JPG, PNG, GIF)');
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                imagePreview.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            // Uncheck remove if new file selected
+            const removeChk = document.getElementById('remove_profile_image');
+            if (removeChk) removeChk.checked = false;
+        }
     });
 }
 </script>

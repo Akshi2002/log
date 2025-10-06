@@ -1,3 +1,19 @@
+__pycache__/
+*.pyc
+.env
+env/
+venv/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+.pytest_cache/
+*.sqlite3
+instance/
+static/uploads/
+node_modules/
+dist/
+build/
 # Python
 __pycache__/
 *.py[cod]

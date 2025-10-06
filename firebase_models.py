@@ -15,6 +15,13 @@ class FirebaseEmployee(UserMixin):
         self.department = employee_data.get('department')
         self.password_hash = employee_data.get('password_hash')
         self._is_active = employee_data.get('is_active', True)
+        self.mobile = employee_data.get('mobile', '')
+        self.profile_image = employee_data.get('profile_image', '')
+        self.position = employee_data.get('position', '')
+        self.hire_date = employee_data.get('hire_date', '')
+        self.address = employee_data.get('address', '')
+        self.emergency_contact = employee_data.get('emergency_contact', '')
+        self.emergency_contact_phone = employee_data.get('emergency_contact_phone', '')
         self.created_at = employee_data.get('created_at')
         self.updated_at = employee_data.get('updated_at')
     
@@ -74,7 +81,14 @@ class FirebaseEmployee(UserMixin):
             'email': self.email,
             'department': self.department,
             'password_hash': self.password_hash,
-            'is_active': self._is_active
+            'is_active': self._is_active,
+            'mobile': self.mobile,
+            'profile_image': self.profile_image,
+            'position': self.position,
+            'hire_date': self.hire_date,
+            'address': self.address,
+            'emergency_contact': self.emergency_contact,
+            'emergency_contact_phone': self.emergency_contact_phone
         }
         
         if self.id:
@@ -105,6 +119,13 @@ class FirebaseEmployee(UserMixin):
             'email': self.email,
             'department': self.department,
             'is_active': self._is_active,
+            'mobile': self.mobile,
+            'profile_image': self.profile_image,
+            'position': self.position,
+            'hire_date': self.hire_date,
+            'address': self.address,
+            'emergency_contact': self.emergency_contact,
+            'emergency_contact_phone': self.emergency_contact_phone,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }

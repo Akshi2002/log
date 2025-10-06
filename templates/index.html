@@ -3,74 +3,102 @@
 {% block title %}Welcome - Employee Attendance System{% endblock %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="container">
-        
-        <h1 class="display-4 fw-bold mb-4">
-            Employee Attendance System
-        </h1>
-        <p class="lead mb-5">Geofenced, secure, and modern attendance management system</p>
-
-        <div class="row justify-content-center">
-            
-            <div class="col-md-4">
-                <div class="feature-card text-center">
-                    <i class="fas fa-user-clock fa-3x mb-3"></i>
-                    <h4>Employee Portal</h4>
-                    <p class="mb-3">Sign in/out within the office geofence</p>
-                    <a href="{{ url_for('employee_portal') }}" class="btn btn-primary">
-                        <i class="fas fa-sign-in-alt me-2"></i>Employee Access
-                    </a>
+<div class="row align-items-stretch">
+    <div class="col-lg-5 d-flex">
+        <div class="card w-100 my-2">
+            <div class="card-body d-flex flex-column justify-content-center">
+                <div class="text-center mb-4">
+                    <h3 class="fw-bold mb-1">Welcome!</h3>
+                    <small class="text-muted">Please login to continue</small>
                 </div>
-            </div>
 
-          
-            <div class="col-md-4">
-                <div class="feature-card text-center">
-                    <i class="fas fa-user-shield fa-3x mb-3"></i>
-                    <h4>Admin Portal</h4>
-                    <p class="mb-3">Manage employees and attendance</p>
-                    <a href="{{ url_for('admin_login') }}" class="btn btn-success">
-                        <i class="fas fa-cog me-2"></i>Admin Access
-                    </a>
+                <form method="POST" id="indexLoginForm" action="{{ url_for('employee_login') }}">
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Login as</label>
+                        <select class="form-select" id="role" name="role">
+                            <option value="employee" selected>Employee</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="credential" id="credentialLabel" class="form-label">ID</label>
+                        <input type="text" class="form-control" id="credential" name="employee_id" placeholder="e.g. EMP001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required>
+                    </div>
+
+                    <input type="hidden" name="latitude" id="latitude">
+                    <input type="hidden" name="longitude" id="longitude">
+                    <input type="hidden" name="username" id="adminUsername">
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-danger">Login</button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-3">
+                    <small class="text-muted">Tip: switch role above to Admin for admin login</small>
+                </div>
+                <div class="text-center mt-2">
+                    <a href="{{ url_for('employee_portal') }}" class="text-decoration-none">I forgot my password</a>
                 </div>
             </div>
         </div>
     </div>
-    <div class="container">
-        <div class="row mt-5">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">
-                            <i class="fas fa-info-circle me-2"></i>System Features
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <i class="fas fa-location-dot fa-2x text-primary mb-2"></i>
-                                <h6>Geofence Access</h6>
-                                <small>GPS-based office geofence for login/sign-in/out</small>
-                            </div>
-                            <div class="col-md-3">
-                                <i class="fas fa-user-gear fa-2x text-success mb-2"></i>
-                                <h6>Admin Controls</h6>
-                                <small>Add, edit, activate/deactivate, and delete employees</small>
-                            </div>
-                            <div class="col-md-3">
-                                <i class="fas fa-key fa-2x text-info mb-2"></i>
-                                <h6>Self-service Password</h6>
-                                <small>Employees can change their password from dashboard</small>
-                            </div>
-                            <div class="col-md-3">
-                                <i class="fas fa-database fa-2x text-warning mb-2"></i>
-                                <h6>Secure Storage</h6>
-                                <small>Hashed passwords; data in a persistent Firebase database</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
+    <div class="col-lg-7">
+        <div class="w-100 my-2" style="height: 480px; border-radius: 25px; overflow: hidden;">
+            <img src="{{ url_for('static', filename='images/Login.jpg') }}" alt="Portal" style="width:100%; height:100%; object-fit:cover;">
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<script>
+// Unified login: switch fields and action by role
+const roleSelect = document.getElementById('role');
+const form = document.getElementById('indexLoginForm');
+const credential = document.getElementById('credential');
+const credentialLabel = document.getElementById('credentialLabel');
+const adminUsername = document.getElementById('adminUsername');
+
+function updateFormForRole() {
+  const isAdmin = roleSelect.value === 'admin';
+  // Update label and name so server receives expected fields
+  credentialLabel.textContent = isAdmin ? 'Username' : 'ID';
+  credential.name = isAdmin ? 'username' : 'employee_id';
+  credential.placeholder = isAdmin ? 'e.g. admin' : 'e.g. EMP001';
+  // Update action
+  form.action = isAdmin ? "{{ url_for('admin_login') }}" : "{{ url_for('employee_login') }}";
+}
+
+roleSelect.addEventListener('change', updateFormForRole);
+updateFormForRole();
+
+// Employee needs geolocation; admin does not. Capture only for employees.
+form.addEventListener('submit', function(e) {
+  const isAdmin = roleSelect.value === 'admin';
+  if (isAdmin) {
+    return; // submit directly for admin
+  }
+  const latInput = document.getElementById('latitude');
+  const lonInput = document.getElementById('longitude');
+  if (latInput.value && lonInput.value) {
+    return; // already set
+  }
+  e.preventDefault();
+  if (!navigator.geolocation) {
+    this.submit();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    latInput.value = pos.coords.latitude;
+    lonInput.value = pos.coords.longitude;
+    form.submit();
+  }, () => {
+    form.submit();
+  }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+});
+</script>
+{% endblock %}

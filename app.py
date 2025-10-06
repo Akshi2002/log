@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
+import csv
+import io
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
@@ -287,21 +289,16 @@ def employee_dashboard():
     today_attendance = FirebaseAttendance.find_by_employee_and_date(current_user.employee_id, today)
     print(f"DEBUG: Today attendance query for {current_user.employee_id} on {today}: {today_attendance.to_dict() if today_attendance else 'None'}")
     
-    # Get recent attendance records (last 10 days)
-    recent_attendance = FirebaseAttendance.get_by_employee(current_user.employee_id, limit=10)
-    print(f"DEBUG: Employee {current_user.employee_id} ({current_user.name}) has {len(recent_attendance)} attendance records")
+    # Get recent timesheets instead of recent attendance (last 10 days)
+    recent_timesheets = FirebaseTimesheet.get_by_employee(current_user.employee_id, limit=10)
+    print(f"DEBUG: Employee {current_user.employee_id} ({current_user.name}) has {len(recent_timesheets)} timesheet records")
     
-    # If today's attendance exists but not in recent attendance, add it manually
-    if today_attendance and not any(r.date == today_attendance.date for r in recent_attendance):
-        print(f"DEBUG: Today's attendance exists but not in recent list - adding it manually")
-        recent_attendance.insert(0, today_attendance)
-    
-    for i, record in enumerate(recent_attendance):
-        print(f"DEBUG: Record {i}: {record.to_dict()}")
+    for i, record in enumerate(recent_timesheets):
+        print(f"DEBUG: Timesheet Record {i}: {record.to_dict()}")
     
     return render_template('employee_dashboard.html',
                          today_attendance=today_attendance,
-                         recent_attendance=recent_attendance)
+                         recent_timesheets=recent_timesheets)
 
 @app.route('/employee/attendance')
 @login_required
@@ -526,7 +523,8 @@ def admin_dashboard():
     
     # Get attendance statistics
     total_employees = len(employees)
-    signed_in_today = len([a for a in today_attendance if a.sign_in_time and not a.sign_out_time])
+    # Count all who signed in today (even if they already signed out)
+    signed_in_today = len([a for a in today_attendance if a.sign_in_time])
     signed_out_today = len([a for a in today_attendance if a.sign_out_time])
     
     return render_template('admin_dashboard.html',
@@ -555,15 +553,23 @@ def admin_add_employee():
         return redirect(url_for('admin_login'))
     
     if request.method == 'POST':
+        # Get all form data
         employee_id = request.form.get('employee_id')
         name = request.form.get('name')
         email = request.form.get('email')
+        mobile = request.form.get('mobile')
         department = request.form.get('department')
+        position = request.form.get('position')
+        hire_date = request.form.get('hire_date')
+        address = request.form.get('address')
+        emergency_contact = request.form.get('emergency_contact')
+        emergency_contact_phone = request.form.get('emergency_contact_phone')
         password = request.form.get('password')
 
         # Validate required fields
-        if not all([employee_id, name, email, department, password]):
-            flash('All fields are required, including password!', 'error')
+        required_fields = [employee_id, name, email, mobile, department, position, hire_date, address, emergency_contact, emergency_contact_phone, password]
+        if not all(required_fields):
+            flash('All fields are required!', 'error')
             return render_template('admin_add_employee.html')
 
         # Check if employee ID already exists
@@ -571,6 +577,37 @@ def admin_add_employee():
         if existing_employee:
             flash('Employee ID already exists!', 'error')
             return render_template('admin_add_employee.html')
+
+        # Check if email already exists
+        all_employees = FirebaseEmployee.get_all()
+        for emp in all_employees:
+            if emp.email.lower() == email.lower():
+                flash('Email address already exists!', 'error')
+                return render_template('admin_add_employee.html')
+
+        # Handle profile image upload
+        profile_image_path = ''
+        if 'profile_image' in request.files:
+            file = request.files['profile_image']
+            if file and file.filename:
+                # Save the image (you might want to use a more secure method here)
+                import os
+                import uuid
+                uploads_dir = os.path.join(app.root_path, 'static', 'uploads', 'employee_images')
+                os.makedirs(uploads_dir, exist_ok=True)
+                
+                # Generate unique filename
+                file_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                filename = f"{employee_id}_{uuid.uuid4().hex}.{file_extension}"
+                file_path = os.path.join(uploads_dir, filename)
+                
+                try:
+                    file.save(file_path)
+                    profile_image_path = f"uploads/employee_images/{filename}"
+                except Exception as e:
+                    print(f"Error saving image: {e}")
+                    flash('Error uploading profile image. Please try again.', 'error')
+                    return render_template('admin_add_employee.html')
 
         # Hash the password
         password_hash = generate_password_hash(password)
@@ -580,7 +617,14 @@ def admin_add_employee():
             'employee_id': employee_id,
             'name': name,
             'email': email,
+            'mobile': mobile,
             'department': department,
+            'position': position,
+            'hire_date': hire_date,
+            'address': address,
+            'emergency_contact': emergency_contact,
+            'emergency_contact_phone': emergency_contact_phone,
+            'profile_image': profile_image_path,
             'password_hash': password_hash,
             'is_active': True
         })
@@ -651,22 +695,70 @@ def admin_edit_employee(employee_doc_id):
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
+        mobile = request.form.get('mobile')
         department = request.form.get('department')
+        position = request.form.get('position')
+        hire_date = request.form.get('hire_date')
+        address = request.form.get('address')
+        emergency_contact = request.form.get('emergency_contact')
+        emergency_contact_phone = request.form.get('emergency_contact_phone')
         password = request.form.get('password')
+        remove_profile_image = request.form.get('remove_profile_image')
         
         # Validate required fields
-        if not all([name, email, department]):
+        if not all([name, email, mobile, department, position, hire_date, address, emergency_contact, emergency_contact_phone]):
             flash('All fields are required!', 'error')
             return render_template('admin_edit_employee.html', employee=employee)
         
         # Update employee
         employee.name = name
         employee.email = email
+        employee.mobile = mobile
         employee.department = department
+        employee.position = position
+        employee.hire_date = hire_date
+        employee.address = address
+        employee.emergency_contact = emergency_contact
+        employee.emergency_contact_phone = emergency_contact_phone
         
         # Update password if provided
         if password:
             employee.password_hash = generate_password_hash(password)
+
+        # Handle profile image upload/removal
+        import os
+        import uuid
+        existing_image = employee.profile_image or ''
+        upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'employee_images')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        file = request.files.get('profile_image')
+        try:
+            if remove_profile_image == '1':
+                # Delete existing file if present
+                if existing_image:
+                    try:
+                        os.remove(os.path.join(app.root_path, 'static', existing_image))
+                    except Exception:
+                        pass
+                employee.profile_image = ''
+            elif file and file.filename:
+                # Save new file
+                file_extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+                filename = f"{employee.employee_id}_{uuid.uuid4().hex}.{file_extension}"
+                file_path = os.path.join(upload_dir, filename)
+                file.save(file_path)
+                # Remove old file
+                if existing_image:
+                    try:
+                        os.remove(os.path.join(app.root_path, 'static', existing_image))
+                    except Exception:
+                        pass
+                employee.profile_image = f"uploads/employee_images/{filename}"
+        except Exception as e:
+            print(f"Error handling profile image: {e}")
+            flash('Error updating profile image. Please try again.', 'error')
+            return render_template('admin_edit_employee.html', employee=employee)
         
         if employee.save():
             if password:
@@ -761,6 +853,66 @@ def admin_timesheets():
                          employees_dict=employees_dict)
 
 
+@app.route('/admin/timesheets/download')
+@login_required
+def admin_timesheets_download():
+    """Download filtered timesheets as CSV. Requires at least one filter."""
+    if not isinstance(current_user, FirebaseAdmin):
+        return redirect(url_for('admin_login'))
+
+    date_filter = request.args.get('date')
+    employee_filter = request.args.get('employee_id')
+    if not (date_filter or employee_filter):
+        flash('Please apply a filter (date and/or employee) before downloading.', 'error')
+        return redirect(url_for('admin_timesheets'))
+
+    # Get filtered timesheets
+    if date_filter and employee_filter:
+        try:
+            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            timesheet_records = [FirebaseTimesheet.find_by_employee_and_date(employee_filter, filter_date)]
+            timesheet_records = [record for record in timesheet_records if record is not None]
+        except ValueError:
+            timesheet_records = []
+    elif date_filter:
+        try:
+            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            timesheet_records = FirebaseTimesheet.get_by_date(filter_date)
+        except ValueError:
+            timesheet_records = []
+    else:
+        timesheet_records = FirebaseTimesheet.get_by_employee(employee_filter, limit=1000)
+
+    employees = FirebaseEmployee.get_all()
+    employees_dict = {emp.employee_id: emp for emp in employees}
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    # Restore main columns, and compress all text fields into a single Time Sheet column
+    writer.writerow(['Date','Employee ID','Employee Name','Department','Submitted At','Time Sheet'])
+    for ts in timesheet_records:
+        emp = employees_dict.get(ts.employee_id)
+        # Combine all available text fields into one block
+        parts = [p for p in [ts.tasks_completed, ts.challenges_faced, ts.achievements, ts.tomorrow_plans, ts.additional_notes] if p]
+        timesheet_text = "\n\n".join(parts)
+        writer.writerow([
+            ts.date,
+            ts.employee_id,
+            (emp.name if emp else ''),
+            (emp.department if emp else ''),
+            (ts.submitted_at[:19] if ts.submitted_at else ''),
+            timesheet_text
+        ])
+
+    csv_bytes = io.BytesIO(output.getvalue().encode('utf-8-sig'))
+    filename_parts = ['timesheets']
+    if date_filter:
+        filename_parts.append(date_filter)
+    if employee_filter:
+        filename_parts.append(employee_filter)
+    filename = '_'.join(filename_parts) + '.csv'
+
+    return send_file(csv_bytes, as_attachment=True, download_name=filename, mimetype='text/csv')
 
 @app.route('/admin/logout')
 @login_required

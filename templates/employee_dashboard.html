@@ -11,10 +11,8 @@
                     <h2 class="card-title mb-0">
                         <i class="fas fa-user-clock me-2"></i>Employee Dashboard
                     </h2>
-                    <div>
-                        <span class="badge bg-primary fs-6">
-                            <i class="fas fa-user me-1"></i>{{ current_user.name }}
-                        </span>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-primary fs-6">{{ current_user.name }}</span>
                     </div>
                 </div>
                 
@@ -26,18 +24,55 @@
                                 <h5 class="card-title">
                                     <i class="fas fa-id-card me-2"></i>Employee Information
                                 </h5>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <p class="mb-1"><strong>Employee ID:</strong></p>
-                                        <p class="mb-1"><strong>Name:</strong></p>
-                                        <p class="mb-1"><strong>Email:</strong></p>
-                                        <p class="mb-1"><strong>Department:</strong></p>
+                                <div class="row align-items-start">
+                                    <div class="col-12 col-sm-4 col-md-4 text-center mb-3 mb-sm-0">
+                                        {% if current_user.profile_image %}
+                                            <img src="{{ url_for('static', filename=current_user.profile_image) }}" 
+                                                 alt="{{ current_user.name }}" 
+                                                 class="rounded" 
+                                                 style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #007bff;">
+                                        {% else %}
+                                            <div class="rounded d-inline-flex align-items-center justify-content-center bg-primary text-white" 
+                                                 style="width: 120px; height: 120px; font-size: 48px; font-weight: bold; border: 3px solid #007bff;">
+                                                {{ current_user.name[0].upper() }}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                    <div class="col-6">
-                                        <p class="mb-1 text-muted">{{ current_user.employee_id }}</p>
-                                        <p class="mb-1 text-muted">{{ current_user.name }}</p>
-                                        <p class="mb-1 text-muted">{{ current_user.email }}</p>
-                                        <p class="mb-1 text-muted">{{ current_user.department }}</p>
+                                    <div class="col-12 col-sm-8 col-md-8">
+                                        <div class="container-fluid px-0">
+                                            <div class="row g-1 align-items-start">
+                                                <div class="col-5 col-sm-4 col-md-5">
+                                                    <p class="mb-1"><strong>Employee ID:</strong></p>
+                                                </div>
+                                                <div class="col-7 col-sm-8 col-md-7">
+                                                    <p class="mb-1 text-muted text-break">{{ current_user.employee_id }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="row g-1 align-items-start">
+                                                <div class="col-5 col-sm-4 col-md-5">
+                                                    <p class="mb-1"><strong>Name:</strong></p>
+                                                </div>
+                                                <div class="col-7 col-sm-8 col-md-7">
+                                                    <p class="mb-1 text-muted text-break">{{ current_user.name }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="row g-1 align-items-start">
+                                                <div class="col-5 col-sm-4 col-md-5">
+                                                    <p class="mb-1"><strong>Email:</strong></p>
+                                                </div>
+                                                <div class="col-7 col-sm-8 col-md-7">
+                                                    <p class="mb-1 text-muted text-break">{{ current_user.email }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="row g-1 align-items-start">
+                                                <div class="col-5 col-sm-4 col-md-5">
+                                                    <p class="mb-1"><strong>Department:</strong></p>
+                                                </div>
+                                                <div class="col-7 col-sm-8 col-md-7">
+                                                    <p class="mb-1 text-muted text-break">{{ current_user.department }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -176,64 +211,54 @@
                     </div>
                 </div>
 
-                <!-- Recent Attendance -->
+                <!-- Recent Timesheets -->
                 <div class="row">
                     <div class="col-12">
                         <h5 class="mb-3">
-                            <i class="fas fa-history me-2"></i>Recent Attendance
+                            <i class="fas fa-clipboard-list me-2"></i>Recent Timesheets
                         </h5>
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
-                                        <th>Sign In</th>
-                                        <th>Sign Out</th>
-                                        <th>Total Hours</th>
-                                        <th>Status</th>
+                                        <th>Time sheet</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for record in recent_attendance %}
+                                    {% for timesheet in recent_timesheets %}
                                     <tr>
-                                        <td>{{ record.date }}</td>
+                                        <td>{{ timesheet.date }}</td>
                                         <td>
-                                            {% if record.sign_in_time %}
-                                                {{ record.get_sign_in_datetime().strftime('%H:%M:%S') if record.get_sign_in_datetime() else '-' }}
+                                            {% if timesheet.tasks_completed %}
+                                                <div class="text-truncate" style="max-width: 300px;" title="{{ timesheet.tasks_completed }}">
+                                                    {{ timesheet.tasks_completed }}
+                                                </div>
                                             {% else %}
-                                                <span class="text-muted">-</span>
+                                                <span class="text-muted">No tasks recorded</span>
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if record.sign_out_time %}
-                                                {{ record.get_sign_out_datetime().strftime('%H:%M:%S') if record.get_sign_out_datetime() else '-' }}
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if record.total_hours %}
-                                                {{ record.total_hours }} hours
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if record.sign_in_time and record.sign_out_time %}
-                                                <span class="badge bg-success">Complete</span>
-                                            {% elif record.sign_in_time %}
-                                                <span class="badge bg-warning">Signed In</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">No Record</span>
-                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#timesheetModal" 
+                                                    data-timesheet-date="{{ timesheet.date }}"
+                                                    data-tasks="{{ timesheet.tasks_completed }}"
+                                                    data-challenges="{{ timesheet.challenges_faced }}"
+                                                    data-achievements="{{ timesheet.achievements }}"
+                                                    data-plans="{{ timesheet.tomorrow_plans }}"
+                                                    data-notes="{{ timesheet.additional_notes }}">
+                                                <i class="fas fa-eye me-1"></i>View Details
+                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
-                                    {% if not recent_attendance %}
+                                    {% if not recent_timesheets %}
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">
-                                            <i class="fas fa-calendar-times fa-2x mb-2"></i><br>
-                                            No attendance records found
+                                        <td colspan="3" class="text-center text-muted py-4">
+                                            <i class="fas fa-clipboard-list fa-2x mb-2"></i><br>
+                                            No timesheet records found
                                         </td>
                                     </tr>
                                     {% endif %}
@@ -246,4 +271,119 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<!-- Timesheet Details Modal -->
+<div class="modal fade" id="timesheetModal" tabindex="-1" aria-labelledby="timesheetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="timesheetModalLabel">
+                    <i class="fas fa-clipboard-list me-2"></i>Timesheet Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-calendar me-2"></i>Date:</strong>
+                        <span id="modal-date" class="text-muted">-</span>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-tasks me-2"></i>Tasks Completed:</strong>
+                        <div id="modal-tasks" class="mt-2 p-3 bg-light rounded">
+                            <span class="text-muted">No tasks recorded</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row" id="modal-challenges-row" style="display: none;">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-exclamation-triangle me-2"></i>Challenges Faced:</strong>
+                        <div id="modal-challenges" class="mt-2 p-3 bg-light rounded"></div>
+                    </div>
+                </div>
+                
+                <div class="row" id="modal-achievements-row" style="display: none;">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-trophy me-2"></i>Achievements:</strong>
+                        <div id="modal-achievements" class="mt-2 p-3 bg-light rounded"></div>
+                    </div>
+                </div>
+                
+                <div class="row" id="modal-plans-row" style="display: none;">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-calendar-plus me-2"></i>Tomorrow's Plans:</strong>
+                        <div id="modal-plans" class="mt-2 p-3 bg-light rounded"></div>
+                    </div>
+                </div>
+                
+                <div class="row" id="modal-notes-row" style="display: none;">
+                    <div class="col-12 mb-3">
+                        <strong><i class="fas fa-sticky-note me-2"></i>Additional Notes:</strong>
+                        <div id="modal-notes" class="mt-2 p-3 bg-light rounded"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Handle timesheet modal data
+document.getElementById('timesheetModal').addEventListener('show.bs.modal', function (event) {
+  const button = event.relatedTarget;
+  const date = button.getAttribute('data-timesheet-date');
+  const tasks = button.getAttribute('data-tasks');
+  const challenges = button.getAttribute('data-challenges');
+  const achievements = button.getAttribute('data-achievements');
+  const plans = button.getAttribute('data-plans');
+  const notes = button.getAttribute('data-notes');
+  
+  // Update modal content
+  document.getElementById('modal-date').textContent = date;
+  
+  document.getElementById('modal-tasks').innerHTML = tasks ? 
+    '<div style="white-space: pre-wrap;">' + tasks + '</div>' : 
+    '<span class="text-muted">No tasks recorded</span>';
+    
+  // Handle challenges - show only if content exists
+  if (challenges && challenges.trim()) {
+    document.getElementById('modal-challenges-row').style.display = 'block';
+    document.getElementById('modal-challenges').innerHTML = '<div style="white-space: pre-wrap;">' + challenges + '</div>';
+  } else {
+    document.getElementById('modal-challenges-row').style.display = 'none';
+  }
+    
+  // Handle achievements - show only if content exists
+  if (achievements && achievements.trim()) {
+    document.getElementById('modal-achievements-row').style.display = 'block';
+    document.getElementById('modal-achievements').innerHTML = '<div style="white-space: pre-wrap;">' + achievements + '</div>';
+  } else {
+    document.getElementById('modal-achievements-row').style.display = 'none';
+  }
+    
+  // Handle plans - show only if content exists
+  if (plans && plans.trim()) {
+    document.getElementById('modal-plans-row').style.display = 'block';
+    document.getElementById('modal-plans').innerHTML = '<div style="white-space: pre-wrap;">' + plans + '</div>';
+  } else {
+    document.getElementById('modal-plans-row').style.display = 'none';
+  }
+    
+  // Handle notes - show only if content exists
+  if (notes && notes.trim()) {
+    document.getElementById('modal-notes-row').style.display = 'block';
+    document.getElementById('modal-notes').innerHTML = '<div style="white-space: pre-wrap;">' + notes + '</div>';
+  } else {
+    document.getElementById('modal-notes-row').style.display = 'none';
+  }
+});
+</script>
+
+{% endblock %}
