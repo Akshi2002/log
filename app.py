@@ -9,7 +9,13 @@ from config import Config
 import math
 
 # Firebase imports
-from firebase_models import FirebaseEmployee, FirebaseAdmin, FirebaseAttendance, FirebaseTimesheet
+from firebase_models import (
+    FirebaseEmployee,
+    FirebaseAdmin,
+    FirebaseAttendance,
+    FirebaseTimesheet,
+    FirebaseWFHApproval,
+)
 from firebase_service import get_firebase_service
 
 app = Flask(__name__)
@@ -105,14 +111,7 @@ def employee_login():
         lon = request.form.get('longitude')
         print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon}")
         
-        # Enforce geofence for employee login - TEMPORARILY DISABLED
-        # if not is_within_office_geofence(lat, lon):
-        #     flash('Access denied: You are not within any office location.', 'error')
-        #     return render_template('employee_login.html', 
-        #                          office_locations=Config.OFFICE_LOCATIONS,
-        #                          office_lat=Config.OFFICE_LATITUDE, 
-        #                          office_lng=Config.OFFICE_LONGITUDE, 
-        #                          office_radius=Config.OFFICE_RADIUS_METERS)
+        # No geofence on login (policy): allow login regardless of location
         
         employee = FirebaseEmployee.find_by_employee_id(employee_id)
         
@@ -147,16 +146,21 @@ def employee_signin():
         employee_id = current_user.employee_id
         lat = request.form.get('latitude')
         lon = request.form.get('longitude')
-        work_from_home = request.form.get('work_from_home') == '1'
+        # Admin-approved WFH only: checkbox alone does NOT bypass geofence
+        work_from_home_checkbox = request.form.get('work_from_home') == '1'
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        admin_approved_wfh = FirebaseWFHApproval.is_approved_for_date(employee_id, today_str)
+        work_from_home = admin_approved_wfh
+        if work_from_home_checkbox and not admin_approved_wfh:
+            flash('WFH not approved by admin for today. Proceeding with office sign-in.', 'error')
         print(f"DEBUG Route: /employee/signin POST lat={lat} lon={lon} work_from_home={work_from_home}")
         
         # Enforce geofence for sign-in - only if not working from home
         if not work_from_home:
-            # Geofence check for office workers - TEMPORARILY DISABLED
-            # if not is_within_office_geofence(lat, lon):
-            #     flash('Sign-in denied: You are not within any office location.', 'error')
-            #     return redirect(url_for('employee_dashboard'))
-            pass
+            # Geofence check for office workers
+            if not is_within_office_geofence(lat, lon):
+                flash('Sign-in denied: You are not within any office location.', 'error')
+                return redirect(url_for('employee_dashboard'))
         
         today = datetime.now().date()
         existing_attendance = FirebaseAttendance.find_by_employee_and_date(employee_id, today)
@@ -173,12 +177,14 @@ def employee_signin():
                 'sign_in_time': datetime.now(),
                 'sign_out_time': None,
                 'total_hours': None,
-                'work_location': 'home' if work_from_home else 'office'
+                'work_location': 'home' if admin_approved_wfh else 'office',
+                'wfh_approved': admin_approved_wfh
             })
         else:
             attendance = existing_attendance
             attendance.sign_in_time = datetime.now()
-            attendance.work_location = 'home' if work_from_home else 'office'
+            attendance.work_location = 'home' if admin_approved_wfh else 'office'
+            attendance.wfh_approved = admin_approved_wfh or getattr(existing_attendance, 'wfh_approved', False)
         
         print(f"DEBUG: Attempting to save attendance for {employee_id} on {today}")
         if attendance.save():
@@ -222,16 +228,18 @@ def employee_signout():
     attendance = FirebaseAttendance.find_by_employee_and_date(employee_id, today)
     
     # Get work location from attendance record
-    work_from_home = attendance.work_location == 'home' if attendance else False
+    today_str = today.strftime('%Y-%m-%d')
+    work_from_home = (attendance.work_location == 'home' if attendance else False) or (
+        FirebaseWFHApproval.is_approved_for_date(employee_id, today_str)
+    )
     print(f"DEBUG: Work from home status: {work_from_home}")
     
     # Enforce geofence for sign-out - only if not working from home
     if not work_from_home:
-        # Geofence check for office workers - TEMPORARILY DISABLED
-        # if not is_within_office_geofence(lat, lon):
-        #     flash('Sign-out denied: You are not within any office location.', 'error')
-        #     return redirect(url_for('employee_dashboard'))
-        pass
+        # Geofence check for office workers
+        if not is_within_office_geofence(lat, lon):
+            flash('Sign-out denied: You are not within any office location.', 'error')
+            return redirect(url_for('employee_dashboard'))
 
     if not attendance or not attendance.sign_in_time:
         flash('You have not signed in today!', 'error')
@@ -298,7 +306,8 @@ def employee_dashboard():
     
     return render_template('employee_dashboard.html',
                          today_attendance=today_attendance,
-                         recent_timesheets=recent_timesheets)
+                         recent_timesheets=recent_timesheets,
+                         datetime=datetime)
 
 @app.route('/employee/attendance')
 @login_required
@@ -374,6 +383,16 @@ def employee_attendance():
     return render_template('employee_attendance_view.html',
                          attendance_records=attendance_records,
                          stats=stats)
+
+@app.route('/employee/wfh')
+@login_required
+def employee_wfh():
+    """Show admin-approved WFH dates for the logged-in employee"""
+    if not isinstance(current_user, FirebaseEmployee):
+        return redirect(url_for('employee_portal'))
+    approvals = get_firebase_service().get_all_wfh_approvals()
+    my_approvals = [ap for ap in approvals if ap.get('employee_id') == current_user.employee_id]
+    return render_template('employee_wfh.html', approvals=my_approvals)
 
 @app.route('/employee/logout')
 @login_required
@@ -527,12 +546,18 @@ def admin_dashboard():
     signed_in_today = len([a for a in today_attendance if a.sign_in_time])
     signed_out_today = len([a for a in today_attendance if a.sign_out_time])
     
+    # Recent timesheets for dashboard preview
+    recent_timesheets = FirebaseTimesheet.get_recent(limit=5)
+    employees_dict = {emp.employee_id: emp for emp in employees}
+
     return render_template('admin_dashboard.html',
                          employees=employees,
                          today_attendance=today_attendance,
                          total_employees=total_employees,
                          signed_in_today=signed_in_today,
                          signed_out_today=signed_out_today,
+                         recent_timesheets=recent_timesheets,
+                         employees_dict=employees_dict,
                          datetime=datetime)
 
 @app.route('/admin/employees')
@@ -699,6 +724,7 @@ def admin_edit_employee(employee_doc_id):
         department = request.form.get('department')
         position = request.form.get('position')
         hire_date = request.form.get('hire_date')
+        blood_group = request.form.get('blood_group', '')
         address = request.form.get('address')
         emergency_contact = request.form.get('emergency_contact')
         emergency_contact_phone = request.form.get('emergency_contact_phone')
@@ -718,6 +744,7 @@ def admin_edit_employee(employee_doc_id):
         employee.position = position
         employee.hire_date = hire_date
         employee.address = address
+        employee.blood_group = blood_group
         employee.emergency_contact = emergency_contact
         employee.emergency_contact_phone = emergency_contact_phone
         
@@ -852,6 +879,95 @@ def admin_timesheets():
                          employees=employees,
                          employees_dict=employees_dict)
 
+@app.route('/admin/manage-team')
+@login_required
+def admin_manage_team():
+    """Manage the Team page - filters + table UI"""
+    if not isinstance(current_user, FirebaseAdmin):
+        return redirect(url_for('admin_login'))
+
+    employees = FirebaseEmployee.get_all()
+    total_employees = len(employees)
+    # online: employees with a sign-in but no sign-out today
+    today = datetime.now().date()
+    today_attendance = FirebaseAttendance.get_by_date(today)
+    online_ids = {a.employee_id for a in today_attendance if a.sign_in_time and not a.sign_out_time}
+    online_count = len(online_ids)
+
+    approvals = get_firebase_service().get_all_wfh_approvals()
+    return render_template(
+        'admin_manage_team.html',
+        employees=employees,
+        total_employees=total_employees,
+        online_count=online_count,
+        wfh_approvals=approvals,
+        datetime=datetime
+    )
+
+@app.route('/admin/wfh/approve', methods=['POST'])
+@login_required
+def admin_wfh_approve():
+    if not isinstance(current_user, FirebaseAdmin):
+        return redirect(url_for('admin_login'))
+    employee_id = request.form.get('employee_id')
+    start_date = request.form.get('start_date')
+    end_date = request.form.get('end_date')
+    if not (employee_id and start_date and end_date):
+        flash('Employee, start date, and end date are required.', 'error')
+        return redirect(url_for('admin_manage_team'))
+    ok = FirebaseWFHApproval.approve(employee_id, start_date, end_date, approved_by=current_user.username)
+    if ok:
+        flash('WFH approved successfully.', 'success')
+    else:
+        flash('Failed to approve WFH. Please try again.', 'error')
+    return redirect(url_for('admin_manage_team'))
+
+
+# -------------------- Payroll helpers removed --------------------
+def _calculate_monthly_hours(employee_id: str, year: int, month: int):
+    """Aggregate attendance hours for an employee within yyyy-mm."""
+    # Get up to ~62 records to cover month; filtering client-side as attendance query lacks date range
+    records = FirebaseAttendance.get_by_employee(employee_id, limit=200)
+    target_prefix = f"{year:04d}-{month:02d}-"
+    month_records = [r for r in records if isinstance(r.date, str) and r.date.startswith(target_prefix)]
+    total_hours = sum([float(r.total_hours or 0) for r in month_records])
+    return total_hours, month_records
+
+def _calculate_employee_month_stats(employee_id: str, year: int, month: int):
+    """Return stats for a given employee and month: total_hours, worked_days, absent_days, overtime_hours."""
+    import calendar
+    total_hours, month_records = _calculate_monthly_hours(employee_id, year, month)
+    # Unique days with any sign-in
+    worked_days = len({r.date for r in month_records if r.sign_in_time})
+    days_in_month = calendar.monthrange(year, month)[1]
+    absent_days = max(0, days_in_month - worked_days)
+    # Derive overtime using config defaults and (if set) employee settings
+    # Payroll-specific settings removed; keep attendance stats helper minimal
+    std_hours_per_day = Config.WORKING_HOURS_END - Config.WORKING_HOURS_START
+    working_days = Config.PAYROLL_WORKING_DAYS_PER_MONTH
+    standard_month_hours = std_hours_per_day * working_days
+    overtime_hours = max(0.0, total_hours - standard_month_hours)
+    return {
+        'total_hours': round(total_hours, 2),
+        'worked_days': worked_days,
+        'absent_days': absent_days,
+        'overtime_hours': round(overtime_hours, 2),
+        'days_in_month': days_in_month,
+    }
+
+def _calculate_payslip_preview(*args, **kwargs):
+    return {}
+def _generate_payslip_for_employee(*args, **kwargs):
+    return None
+
+    
+
+    
+
+    
+
+    
+
 
 @app.route('/admin/timesheets/download')
 @login_required
@@ -913,6 +1029,8 @@ def admin_timesheets_download():
     filename = '_'.join(filename_parts) + '.csv'
 
     return send_file(csv_bytes, as_attachment=True, download_name=filename, mimetype='text/csv')
+
+    
 
 @app.route('/admin/logout')
 @login_required

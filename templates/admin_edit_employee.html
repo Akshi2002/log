@@ -126,6 +126,22 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
+                                <label for="blood_group" class="form-label">
+                                    <i class="fas fa-tint me-1"></i>
+                                    Blood Group
+                                </label>
+                                <select class="form-select" id="blood_group" name="blood_group">
+                                    <option value="">Select</option>
+                                    {% set bg = employee.blood_group or '' %}
+                                    {% for group in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+                                        <option value="{{ group }}" {% if bg == group %}selected{% endif %}>{{ group }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-12"></div>
+                            
+                            <div class="col-md-6 mb-3">
                                 <label for="password" class="form-label">
                                     <i class="fas fa-key me-1"></i>
                                     Password (leave blank to keep unchanged)
@@ -158,6 +174,8 @@
                                           placeholder="Enter complete address including street, city, state, zip code">{{ employee.address }}</textarea>
                             </div>
                         </div>
+
+                        
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -224,6 +242,8 @@
                             </div>
                         </div>
                         
+                        
+
                         <!-- Profile Image -->
                         <h5 class="mb-3 mt-2 text-primary">
                             <i class="fas fa-image me-2"></i>Profile Picture

@@ -22,6 +22,7 @@ class FirebaseEmployee(UserMixin):
         self.address = employee_data.get('address', '')
         self.emergency_contact = employee_data.get('emergency_contact', '')
         self.emergency_contact_phone = employee_data.get('emergency_contact_phone', '')
+        self.blood_group = employee_data.get('blood_group', '')
         self.created_at = employee_data.get('created_at')
         self.updated_at = employee_data.get('updated_at')
     
@@ -88,7 +89,8 @@ class FirebaseEmployee(UserMixin):
             'hire_date': self.hire_date,
             'address': self.address,
             'emergency_contact': self.emergency_contact,
-            'emergency_contact_phone': self.emergency_contact_phone
+            'emergency_contact_phone': self.emergency_contact_phone,
+            'blood_group': self.blood_group
         }
         
         if self.id:
@@ -126,6 +128,7 @@ class FirebaseEmployee(UserMixin):
             'address': self.address,
             'emergency_contact': self.emergency_contact,
             'emergency_contact_phone': self.emergency_contact_phone,
+            'blood_group': self.blood_group,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -199,6 +202,7 @@ class FirebaseAttendance:
         self.sign_out_time = attendance_data.get('sign_out_time')  # ISO string or datetime
         self.total_hours = attendance_data.get('total_hours')
         self.work_location = attendance_data.get('work_location', 'office')  # 'office' or 'home'
+        self.wfh_approved = attendance_data.get('wfh_approved', False)
         self.created_at = attendance_data.get('created_at')
     
     @staticmethod
@@ -257,7 +261,8 @@ class FirebaseAttendance:
             'sign_in_time': sign_in_time_str,
             'sign_out_time': sign_out_time_str,
             'total_hours': self.total_hours,
-            'work_location': self.work_location
+            'work_location': self.work_location,
+            'wfh_approved': self.wfh_approved
         }
         
         try:
@@ -304,6 +309,8 @@ class FirebaseAttendance:
             'sign_in_time': self.sign_in_time,
             'sign_out_time': self.sign_out_time,
             'total_hours': self.total_hours,
+            'work_location': self.work_location,
+            'wfh_approved': self.wfh_approved,
             'created_at': self.created_at
         }
 
@@ -399,3 +406,41 @@ class FirebaseTimesheet:
             'updated_at': self.updated_at
         }
 
+
+# -------------------- Payroll Models --------------------
+# Payroll models removed
+
+class FirebaseWFHApproval:
+    """Admin-approved Work-From-Home ranges"""
+    def __init__(self, data: Dict[str, Any]):
+        self.id = data.get('id')
+        self.employee_id = data.get('employee_id')
+        self.start_date = data.get('start_date')  # YYYY-MM-DD
+        self.end_date = data.get('end_date')      # YYYY-MM-DD
+        self.approved_by = data.get('approved_by')
+        self.created_at = data.get('created_at')
+
+    @staticmethod
+    def approve(employee_id: str, start_date: str, end_date: str, approved_by: str) -> bool:
+        service = get_firebase_service()
+        try:
+            doc_id = service.create_wfh_approval({
+                'employee_id': employee_id,
+                'start_date': start_date,
+                'end_date': end_date,
+                'approved_by': approved_by
+            })
+            return bool(doc_id)
+        except Exception:
+            return False
+
+    @staticmethod
+    def is_approved_for_date(employee_id: str, date_str: str) -> bool:
+        service = get_firebase_service()
+        approvals = service.get_wfh_approvals_by_employee(employee_id)
+        for ap in approvals:
+            s = ap.get('start_date')
+            e = ap.get('end_date')
+            if s and e and s <= date_str <= e:
+                return True
+        return False

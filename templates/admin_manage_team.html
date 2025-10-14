@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Manage the Team{% endblock %}
+
+{% block content %}
+<div class="p-4 mb-3" style="background: linear-gradient(135deg, #8a2be2 0%, #b666d2 50%, #6c4bc5 100%); border-radius: 24px; color: white; position: relative;">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <div class="small" style="opacity:.85">Product Name</div>
+            <h4 class="fw-semibold mb-0">Manage the Team</h4>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-white text-dark rounded-pill px-3 py-2">Total Members: {{ total_employees }}</span>
+            <span class="badge bg-white text-dark rounded-pill px-3 py-2"><span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:999px;margin-right:6px"></span>Online: {{ online_count }}/{{ total_employees }}</span>
+            <div class="rounded-circle bg-white bg-opacity-25 p-3 ms-2"><i data-lucide="user-circle" class="text-white"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Approved WFH List -->
+<div class="bg-white p-3 rounded-3 shadow-sm mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-bold">Approved WFH</div>
+        <small class="text-muted">Latest first</small>
+    </div>
+    {% if wfh_approvals %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Approved By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ap in wfh_approvals %}
+                <tr>
+                    <td>{{ ap.employee_id }}</td>
+                    <td>
+                        {% for emp in employees %}
+                            {% if emp.employee_id == ap.employee_id %}
+                                {{ emp.name }}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ ap.start_date }}</td>
+                    <td>{{ ap.end_date }}</td>
+                    <td>{{ ap.approved_by }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-muted small">No WFH approvals yet.</div>
+    {% endif %}
+</div>
+
+<!-- Team Table -->
+<div class="card border-0" style="border-radius:20px; box-shadow: 0 12px 24px rgba(0,0,0,.08);">
+    <div class="table-responsive">
+        <table class="table align-middle" style="--bs-table-bg:#ffffff;">
+            <thead style="background:#f7f5ff;">
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Employee ID</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Status</th>
+                    <th class="text-end">Timesheet</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr class="{% if loop.index % 2 == 0 %}table-light{% endif %}">
+                    <td>
+                        <span class="me-2" style="display:inline-block;width:10px;height:10px;background:#000;border-radius:999px"></span>
+                        {{ emp.name or 'Person' }}
+                    </td>
+                    <td>{{ emp.employee_id }}</td>
+                    <td>{{ emp.department }}</td>
+                    <td>{{ emp.position }}</td>
+                    <td>
+                        {% set is_online = emp.employee_id in online_ids if online_ids is defined else False %}
+                        {% if is_online %}
+                            <span class="text-success">Online</span>
+                        {% else %}
+                            <span class="text-muted">Last Seen —</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('admin_timesheets', employee_id=emp.employee_id) }}" class="text-decoration-none"><i data-lucide="download"></i></a>
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#wfhModal" data-employee-id="{{ emp.employee_id }}">
+                            Approve WFH
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- WFH Approval Modal -->
+<div class="modal fade" id="wfhModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Approve Work From Home</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('admin_wfh_approve') }}">
+        <div class="modal-body">
+            <input type="hidden" name="employee_id" id="wfh-employee-id">
+            <div class="mb-3">
+                <label class="form-label">Start Date</label>
+                <input type="date" class="form-control" name="start_date" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">End Date</label>
+                <input type="date" class="form-control" name="end_date" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Approve</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+var wfhModal = document.getElementById('wfhModal');
+if (wfhModal) {
+  wfhModal.addEventListener('show.bs.modal', function (event) {
+    var button = event.relatedTarget;
+    var employeeId = button.getAttribute('data-employee-id');
+    document.getElementById('wfh-employee-id').value = employeeId;
+  });
+}
+</script>
+
+<!-- Global footer is in base.html -->
+
+{% endblock %}
+
+
+

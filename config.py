@@ -79,30 +79,32 @@ class Config:
     
     
     OFFICE_LOCATIONS = [
-        {
-            'name': 'Main Office',
-            'latitude': 12.92499,
-            'longitude': 77.61800,
-            'radius_meters': 1000
-        },
+        # {
+        #     'name': 'Main Office',
+        #     'latitude': 12.92499,
+        #     'longitude': 77.61800,
+        #     'radius_meters': 1000
+        # },
         {
             'name': 'Home Office',
             'latitude': 12.9040293,
             'longitude': 77.5634288,
             'radius_meters': 1000
         },
-        # {
-        #     'name': '***',
-        #     'latitude': 00.0000,
-        #     'longitude': 00.0000,
-        #     'radius_meters': 1000
-        # }
+        {
+            'name': 'college',
+            'latitude': 13.11734540585317,
+            'longitude':77.6361704517549,
+            'radius_meters': 1000
+        }
     ]
     
     # Legacy single location settings (for backward compatibility)
     OFFICE_LATITUDE = float(os.environ.get('OFFICE_LATITUDE', '12.92499'))
     OFFICE_LONGITUDE = float(os.environ.get('OFFICE_LONGITUDE', '77.6180062'))
     OFFICE_RADIUS_METERS = float(os.environ.get('OFFICE_RADIUS_METERS', '1000'))
+    
+    # Payroll removed
     
     @staticmethod
     def is_office_hours():

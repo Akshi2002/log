@@ -41,100 +41,116 @@
 </style>
 {% endblock %}
 
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-12">
+<div class="p-4 mb-4" style="background: linear-gradient(135deg, #8a2be2 0%, #b666d2 50%, #6c4bc5 100%); border-radius: 24px; color: white; position: relative; min-height: 140px;">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h2 class="mb-3">
-                    <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
-                </h2>
-                <p class="text-muted">Welcome back, {{ current_user.name }}!</p>
+            <div class="small" style="opacity:.85">Product Name</div>
             </div>
-            <div>
-                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-danger">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
-            </div>
+        <div class="d-flex align-items-center flex-wrap" style="gap:.5rem;">
+            <a href="{{ url_for('admin_manage_team') }}" class="btn btn-light btn-sm rounded-pill px-3">Manage Team</a>
+            <a href="{{ url_for('admin_employees') }}" class="btn btn-light btn-sm rounded-pill px-3">Manage Employees</a>
+            <a href="{{ url_for('admin_attendance') }}" class="btn btn-light btn-sm rounded-pill px-3">View Attendance</a>
+            <a href="{{ url_for('admin_timesheets') }}" class="btn btn-light btn-sm rounded-pill px-3">Employee Timesheets</a>
+            <a href="{{ url_for('admin_attendance', date=datetime.now().strftime('%Y-%m-%d')) }}" class="btn btn-light btn-sm rounded-pill px-3">Today's Report</a>
+            <a href="#" class="btn btn-light btn-sm rounded-pill px-3" title="Calendar (to be wired)">Calendar</a>
+            <a href="{{ url_for('admin_logout') }}" class="rounded-circle bg-white bg-opacity-25 p-3 ms-1 text-decoration-none" title="Logout">
+                <i data-lucide="log-out" class="text-white"></i>
+            </a>
         </div>
+    </div>
+    <div class="position-absolute" style="left: 18px; bottom: 12px;">
+        <h5 class="mb-1">Hi {{ current_user.name }}</h5>
+        <div class="small" style="opacity:.9">{{ (datetime.now()).strftime('%A, %d %b %Y') }}</div>
     </div>
 </div>
 
 
 
-<!-- Statistics Cards -->
-<div class="row mb-4 g-3">
-    <div class="col-md-3">
-        <div class="card text-center h-100 shadow-sm border-0 stats-card">
-            <div class="card-body d-flex flex-column justify-content-center py-4">
-                <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                <h3 class="card-title text-primary mb-2 fw-bold">{{ total_employees }}</h3>
-                <p class="card-text text-muted mb-0 fw-medium">Total Employees</p>
-            </div>
+<!-- Personal Timesheet (Recent) -->
+<div class="card border-0 mb-4" style="border-radius: 20px; box-shadow: 0 12px 24px rgba(0,0,0,.08);">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-bold">Timesheet</div>
+            <i data-lucide="settings-2" class="text-muted"></i>
         </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-center h-100 shadow-sm border-0 stats-card">
-            <div class="card-body d-flex flex-column justify-content-center py-4">
-                <i class="fas fa-sign-in-alt fa-3x text-success mb-3"></i>
-                <h3 class="card-title text-success mb-2 fw-bold">{{ signed_in_today }}</h3>
-                <p class="card-text text-muted mb-0 fw-medium">Signed In Today</p>
-            </div>
+        {% if recent_timesheets %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" style="--bs-table-bg:#ffffff;">
+                <thead style="background:#3b38ff; color:#fff;">
+                    <tr>
+                        <th style="border-top-left-radius:18px;">Date & Time</th>
+                        <th>Employee Name</th>
+                        <th>Employee ID</th>
+                        <th>Department</th>
+                        <th>Report Preview</th>
+                        <th style="border-top-right-radius:18px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ts in recent_timesheets %}
+                    <tr>
+                        <td>
+                            {{ ts.date }}
+                            {% if ts.submitted_at %}
+                                <div class="text-muted small">{{ ts.submitted_at[11:19] }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ (employees_dict.get(ts.employee_id).name) if employees_dict.get(ts.employee_id) else '' }}</td>
+                        <td>{{ ts.employee_id }}</td>
+                        <td>{{ (employees_dict.get(ts.employee_id).department) if employees_dict.get(ts.employee_id) else '' }}</td>
+                        <td class="text-muted small">{{ ts.tasks_completed or ts.achievements or ts.additional_notes or '—' }}</td>
+                        <td><a href="{{ url_for('admin_timesheets', employee_id=ts.employee_id) }}" class="text-decoration-none" title="View all timesheets for this employee"><i data-lucide="external-link"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-center h-100 shadow-sm border-0 stats-card">
-            <div class="card-body d-flex flex-column justify-content-center py-4">
-                <i class="fas fa-sign-out-alt fa-3x text-danger mb-3"></i>
-                <h3 class="card-title text-danger mb-2 fw-bold">{{ signed_out_today }}</h3>
-                <p class="card-text text-muted mb-0 fw-medium">Signed Out Today</p>
-            </div>
+        <div class="text-center">
+            <a href="{{ url_for('admin_timesheets') }}" class="btn btn-light border rounded-pill px-3">Load More</a>
         </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-center h-100 shadow-sm border-0 stats-card">
-            <div class="card-body d-flex flex-column justify-content-center py-4">
-                <i class="fas fa-calendar-day fa-3x text-info mb-3"></i>
-                <h3 class="card-title text-info mb-2 fw-bold">{{ today_attendance|length }}</h3>
-                <p class="card-text text-muted mb-0 fw-medium">Today's Records</p>
-            </div>
-        </div>
+        {% else %}
+        <div class="text-muted small">No recent entries.</div>
+        {% endif %}
     </div>
 </div>
 
 
 
 <!-- Today's Attendance -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-calendar-check me-2"></i>Today's Attendance
-                </h5>
+<div class="card border-0 mb-4" style="border-radius:20px; box-shadow:0 12px 24px rgba(0,0,0,.08);">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-bold">Today's Attendance</div>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mb-3">
+            <span class="px-3 py-2" style="background:#6c4bc5;color:#fff;border-radius:999px;">Total Members : {{ total_employees }}</span>
+            <span class="px-3 py-2" style="background:#6c4bc5;color:#fff;border-radius:999px;">Present today : {{ signed_in_today }}/{{ total_employees }}</span>
+            <span class="px-3 py-2" style="background:#6c4bc5;color:#fff;border-radius:999px;">WFH : {{ wfh_today|default(0) }}/{{ total_employees }}</span>
+            {% set online_count = (today_attendance | selectattr('sign_in_time') | rejectattr('sign_out_time') | list | length) if today_attendance else 0 %}
+            <span class="px-3 py-2 d-inline-flex align-items-center" style="background:#6c4bc5;color:#fff;border-radius:999px;">
+                <span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:999px;margin-right:8px;"></span>
+                Online : {{ online_count }}/{{ total_employees }}
+            </span>
             </div>
-            <div class="card-body">
                 {% if today_attendance %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+            <table class="table table-hover align-middle" style="--bs-table-bg:#ffffff;">
+                <thead style="background:#6c4bc5;color:#fff;">
                             <tr>
+                        <th style="border-top-left-radius:18px;">Employee Name</th>
                                 <th>Employee ID</th>
-                                <th>Name</th>
                                 <th>Department</th>
-                                <th>Sign In Time</th>
-                                <th>Sign Out Time</th>
-                                <th>Total Hours</th>
-                                <th>Status</th>
+                        <th>Login Time</th>
+                        <th>Logoff Time</th>
+                        <th>Uptime</th>
+                        <th style="border-top-right-radius:18px;">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for attendance in today_attendance %}
                             <tr>
-                                <td><strong>{{ attendance.employee_id }}</strong></td>
                                 <td>
                                     {% for employee in employees %}
                                         {% if employee.employee_id == attendance.employee_id %}
@@ -142,6 +158,7 @@
                                         {% endif %}
                                     {% endfor %}
                                 </td>
+                        <td class="text-muted">{{ attendance.employee_id }}</td>
                                 <td>
                                     {% for employee in employees %}
                                         {% if employee.employee_id == attendance.employee_id %}
@@ -151,38 +168,26 @@
                                 </td>
                                 <td>
                                     {% if attendance.sign_in_time %}
-                                        <span class="text-success">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {{ attendance.get_sign_in_datetime().strftime('%H:%M:%S') if attendance.get_sign_in_datetime() else 'Not signed in' }}
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted">Not signed in</span>
-                                    {% endif %}
+                                {{ attendance.get_sign_in_datetime().strftime('%I:%M %p') if attendance.get_sign_in_datetime() }}
+                            {% else %}-{% endif %}
                                 </td>
                                 <td>
                                     {% if attendance.sign_out_time %}
-                                        <span class="text-danger">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {{ attendance.get_sign_out_datetime().strftime('%H:%M:%S') if attendance.get_sign_out_datetime() else 'Not signed out' }}
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted">Not signed out</span>
-                                    {% endif %}
+                                {{ attendance.get_sign_out_datetime().strftime('%I:%M %p') if attendance.get_sign_out_datetime() }}
+                            {% else %}<span class="text-success">Online</span>{% endif %}
                                 </td>
                                 <td>
                                     {% if attendance.total_hours %}
-                                        <span class="badge bg-info">{{ "%.2f"|format(attendance.total_hours) }} hrs</span>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
+                                {{ "%.2f"|format(attendance.total_hours) }} hr
+                            {% else %}-{% endif %}
                                 </td>
                                 <td>
                                     {% if attendance.sign_in_time and not attendance.sign_out_time %}
-                                        <span class="badge bg-warning">Pending Completion</span>
+                                <span class="badge bg-success">Online</span>
                                     {% elif attendance.sign_out_time %}
-                                        <span class="badge bg-success">Completed</span>
+                                <span class="badge bg-secondary">Offline</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">Absent</span>
+                                <span class="badge bg-secondary">Offline</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -190,52 +195,19 @@
                         </tbody>
                     </table>
                 </div>
+        <div class="text-center">
+            <a href="{{ url_for('admin_attendance') }}" class="small text-decoration-none" style="color:#6c4bc5;">View Complete List</a>
+        </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No attendance records for today</h5>
-                    <p class="text-muted">Employees will appear here once they sign in</p>
-                </div>
-                {% endif %}
-            </div>
+            <i class="fas fa-calendar-times fa-3x text-muted mb-2"></i>
+            <div class="text-muted">No attendance records for today</div>
         </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-tools me-2"></i>Quick Actions
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_employees') }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-users me-2"></i>Manage Employees
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_attendance') }}" class="btn btn-outline-success w-100 mb-2">
-                            <i class="fas fa-calendar-check me-2"></i>View Attendance
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_timesheets') }}" class="btn btn-outline-warning w-100 mb-2">
-                            <i class="fas fa-clipboard-list me-2"></i>Employee Timesheets
-                        </a>
-                    </div>
-                    <div class="col-md-3">
-                        <a href="{{ url_for('admin_attendance', date=datetime.now().strftime('%Y-%m-%d')) }}" class="btn btn-outline-info w-100 mb-2">
-                            <i class="fas fa-chart-bar me-2"></i>Today's Report
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Quick Actions moved to header -->
 {% endblock %} 
+
+{# Footer #}

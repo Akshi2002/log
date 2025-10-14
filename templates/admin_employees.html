@@ -72,7 +72,7 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                data-bs-toggle="modal" data-bs-target="#employeeModal{{ employee.id }}">
+                                                data-bs-toggle="modal" data-bs-target="#employeeModal{{ employee.id }}" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         <a href="{{ url_for('admin_edit_employee', employee_doc_id=employee.id) }}" 
@@ -135,23 +135,23 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Employee ID:</strong><br>{{ employee.employee_id }}</p>
-                            <p><strong>Name:</strong><br>{{ employee.name }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Email:</strong><br>{{ employee.email }}</p>
-                            <p><strong>Department:</strong><br>{{ employee.department }}</p>
-                        </div>
-                    </div>
-                    <p><strong>Status:</strong><br>
+                    <div class="mb-2"><strong>Employee ID:</strong> {{ employee.employee_id }}</div>
+                    <div class="mb-2"><strong>Name:</strong> {{ employee.name }}</div>
+                    <div class="mb-2"><strong>Email:</strong> {{ employee.email }}</div>
+                    <div class="mb-2"><strong>Mobile:</strong> {{ employee.mobile or '—' }}</div>
+                    <div class="mb-2"><strong>Position:</strong> {{ employee.position or '—' }}</div>
+                    <div class="mb-2"><strong>Department:</strong> {{ employee.department }}</div>
+                    <div class="mb-2"><strong>Hire Date:</strong> {{ employee.hire_date or '—' }}</div>
+                    <div class="mb-2"><strong>Status:</strong>
                         {% if employee.is_active %}
                             <span class="badge bg-success">Active</span>
                         {% else %}
                             <span class="badge bg-danger">Inactive</span>
                         {% endif %}
-                    </p>
+                    </div>
+                    <div class="mb-2"><strong>Emergency Contact:</strong> {{ employee.emergency_contact or '—' }}</div>
+                    <div class="mb-2"><strong>Emergency Phone:</strong> {{ employee.emergency_contact_phone or '—' }}</div>
+                    <div class="mb-2"><strong>Address:</strong> {{ employee.address or '—' }}</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal" aria-label="Back">

@@ -440,6 +440,52 @@ class FirebaseService:
             print(f"❌ Error updating timesheet: {e}")
             return False
 
+    # WFH Approvals
+    def create_wfh_approval(self, approval_data: Dict[str, Any]) -> str:
+        try:
+            doc_ref = self.db.collection('wfh_approvals').document()
+            approval_data['created_at'] = firestore.SERVER_TIMESTAMP
+            doc_ref.set(approval_data)
+            print(f"✅ WFH approval created with ID: {doc_ref.id}")
+            return doc_ref.id
+        except Exception as e:
+            print(f"❌ Error creating WFH approval: {e}")
+            raise
+
+    def get_wfh_approvals_by_employee(self, employee_id: str) -> List[Dict[str, Any]]:
+        try:
+            docs = (self.db.collection('wfh_approvals')
+                    .where('employee_id', '==', employee_id)
+                    .get())
+            approvals = []
+            for doc in docs:
+                data = doc.to_dict()
+                data['id'] = doc.id
+                approvals.append(data)
+            return approvals
+        except Exception as e:
+            print(f"❌ Error fetching WFH approvals: {e}")
+            return []
+
+    def get_all_wfh_approvals(self) -> List[Dict[str, Any]]:
+        """Return all WFH approvals (unsorted)"""
+        try:
+            docs = self.db.collection('wfh_approvals').get()
+            approvals = []
+            for doc in docs:
+                data = doc.to_dict()
+                data['id'] = doc.id
+                approvals.append(data)
+            # Sort by start_date desc if present
+            approvals.sort(key=lambda x: x.get('start_date', ''), reverse=True)
+            return approvals
+        except Exception as e:
+            print(f"❌ Error fetching all WFH approvals: {e}")
+            return []
+
+# -------------------- Payroll Collections --------------------
+    # Payroll features removed
+
 # Global Firebase service instance
 firebase_service = None
 
