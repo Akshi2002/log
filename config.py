@@ -79,12 +79,12 @@ class Config:
     
     
     OFFICE_LOCATIONS = [
-        # {
-        #     'name': 'Main Office',
-        #     'latitude': 12.92499,
-        #     'longitude': 77.61800,
-        #     'radius_meters': 1000
-        # },
+         {
+             'name': 'Main Office',
+             'latitude': 12.92499,
+             'longitude': 77.61800,
+             'radius_meters': 1000
+         },
         {
             'name': 'Home Office',
             'latitude': 12.9040293,
