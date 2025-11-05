@@ -1,8 +1,10 @@
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth as firebase_auth
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+import random
+import string
 
 class FirebaseService:
     """Firebase Firestore service for attendance system"""
@@ -149,6 +151,19 @@ class FirebaseService:
         except Exception as e:
             print(f"❌ Error getting all employees: {e}")
             return []
+
+    def get_employee_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get employee by email field"""
+        try:
+            docs = self.db.collection('employees').where('email', '==', email).get()
+            for doc in docs:
+                data = doc.to_dict()
+                data['id'] = doc.id
+                return data
+            return None
+        except Exception as e:
+            print(f"❌ Error getting employee by email: {e}")
+            return None
     
     def update_employee(self, doc_id: str, update_data: Dict[str, Any]) -> bool:
         """Update employee data"""
@@ -482,6 +497,71 @@ class FirebaseService:
         except Exception as e:
             print(f"❌ Error fetching all WFH approvals: {e}")
             return []
+
+    # OTP Management for Employee Signup
+    def generate_otp(self, email: str) -> str:
+        """Generate and store a 6-digit OTP for email verification"""
+        try:
+            otp = ''.join([random.choice(string.digits) for _ in range(6)])
+            expires_at = datetime.now() + timedelta(minutes=15)
+            
+            # Store OTP in Firestore
+            otp_data = {
+                'email': email,
+                'otp': otp,
+                'created_at': firestore.SERVER_TIMESTAMP,
+                'expires_at': expires_at,
+                'verified': False
+            }
+            
+            # Delete any existing OTP for this email first
+            existing_otps = self.db.collection('signup_otps').where('email', '==', email).get()
+            for doc in existing_otps:
+                doc.reference.delete()
+            
+            # Create new OTP
+            self.db.collection('signup_otps').add(otp_data)
+            print(f"✅ OTP generated for {email}")
+            return otp
+        except Exception as e:
+            print(f"❌ Error generating OTP: {e}")
+            raise
+
+    def verify_otp(self, email: str, otp: str) -> bool:
+        """Verify OTP for email"""
+        try:
+            otp_docs = (self.db.collection('signup_otps')
+                       .where('email', '==', email)
+                       .where('otp', '==', otp)
+                       .get())
+            
+            if not otp_docs:
+                return False
+            
+            for doc in otp_docs:
+                otp_data = doc.to_dict()
+                expires_at = otp_data.get('expires_at')
+                
+                # Check if expired
+                if isinstance(expires_at, datetime):
+                    if datetime.now() > expires_at:
+                        doc.reference.delete()
+                        return False
+                
+                # Check if already verified
+                if otp_data.get('verified', False):
+                    return False
+                
+                # Mark as verified
+                doc.reference.update({'verified': True})
+                # Delete OTP after successful verification
+                doc.reference.delete()
+                return True
+            
+            return False
+        except Exception as e:
+            print(f"❌ Error verifying OTP: {e}")
+            return False
 
 # -------------------- Payroll Collections --------------------
     # Payroll features removed

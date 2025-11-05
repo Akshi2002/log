@@ -12,37 +12,9 @@
                     <small class="text-muted">Please login to continue</small>
                 </div>
 
-                <form method="POST" id="indexLoginForm" action="{{ url_for('employee_login') }}">
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Login as</label>
-                        <select class="form-select" id="role" name="role">
-                            <option value="employee" selected>Employee</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="credential" id="credentialLabel" class="form-label">ID</label>
-                        <input type="text" class="form-control" id="credential" name="employee_id" placeholder="e.g. EMP001" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required>
-                    </div>
-
-                    <input type="hidden" name="latitude" id="latitude">
-                    <input type="hidden" name="longitude" id="longitude">
-                    <input type="hidden" name="username" id="adminUsername">
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-danger">Login</button>
-                    </div>
-                </form>
-
-                <div class="text-center mt-3">
-                    <small class="text-muted">Tip: switch role above to Admin for admin login</small>
-                </div>
-                <div class="text-center mt-2">
-                    <a href="{{ url_for('employee_portal') }}" class="text-decoration-none">I forgot my password</a>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('employee_login') }}" class="btn btn-danger">Employee Login</a>
+                    <a href="{{ url_for('admin_login') }}" class="btn btn-outline-secondary">Admin Login</a>
                 </div>
             </div>
         </div>
@@ -55,50 +27,5 @@
     </div>
 </div>
 
-<script>
-// Unified login: switch fields and action by role
-const roleSelect = document.getElementById('role');
-const form = document.getElementById('indexLoginForm');
-const credential = document.getElementById('credential');
-const credentialLabel = document.getElementById('credentialLabel');
-const adminUsername = document.getElementById('adminUsername');
-
-function updateFormForRole() {
-  const isAdmin = roleSelect.value === 'admin';
-  // Update label and name so server receives expected fields
-  credentialLabel.textContent = isAdmin ? 'Username' : 'ID';
-  credential.name = isAdmin ? 'username' : 'employee_id';
-  credential.placeholder = isAdmin ? 'e.g. admin' : 'e.g. EMP001';
-  // Update action
-  form.action = isAdmin ? "{{ url_for('admin_login') }}" : "{{ url_for('employee_login') }}";
-}
-
-roleSelect.addEventListener('change', updateFormForRole);
-updateFormForRole();
-
-// Employee needs geolocation; admin does not. Capture only for employees.
-form.addEventListener('submit', function(e) {
-  const isAdmin = roleSelect.value === 'admin';
-  if (isAdmin) {
-    return; // submit directly for admin
-  }
-  const latInput = document.getElementById('latitude');
-  const lonInput = document.getElementById('longitude');
-  if (latInput.value && lonInput.value) {
-    return; // already set
-  }
-  e.preventDefault();
-  if (!navigator.geolocation) {
-    this.submit();
-    return;
-  }
-  navigator.geolocation.getCurrentPosition((pos) => {
-    latInput.value = pos.coords.latitude;
-    lonInput.value = pos.coords.longitude;
-    form.submit();
-  }, () => {
-    form.submit();
-  }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-});
-</script>
+<script></script>
 {% endblock %}

@@ -7,6 +7,10 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 import math
+from firebase_admin import auth as firebase_auth
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Firebase imports
 from firebase_models import (
@@ -101,34 +105,9 @@ def employee_portal():
                          office_lng=Config.OFFICE_LONGITUDE, 
                          office_radius=Config.OFFICE_RADIUS_METERS)
 
-@app.route('/employee/login', methods=['GET', 'POST'])
+@app.route('/employee/login', methods=['GET'])
 def employee_login():
     """Employee login functionality"""
-    if request.method == 'POST':
-        employee_id = request.form.get('employee_id')
-        password = request.form.get('password')
-        lat = request.form.get('latitude')
-        lon = request.form.get('longitude')
-        print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon}")
-        
-        # No geofence on login (policy): allow login regardless of location
-        
-        employee = FirebaseEmployee.find_by_employee_id(employee_id)
-        
-        if not employee or not employee.is_active or not employee.check_password(password):
-            flash('Invalid Employee ID or Password. Please check your credentials and try again.', 'error')
-            return render_template('employee_login.html', 
-                                 office_locations=Config.OFFICE_LOCATIONS,
-                                 office_lat=Config.OFFICE_LATITUDE, 
-                                 office_lng=Config.OFFICE_LONGITUDE, 
-                                 office_radius=Config.OFFICE_RADIUS_METERS)
-
-        # Login the employee
-        login_user(employee)
-        
-        flash(f'Welcome {employee.name}! You have successfully logged in.', 'success')
-        return redirect(url_for('employee_dashboard'))
-    
     return render_template('employee_login.html', 
                          office_locations=Config.OFFICE_LOCATIONS,
                          office_lat=Config.OFFICE_LATITUDE, 
@@ -146,13 +125,38 @@ def employee_signin():
         employee_id = current_user.employee_id
         lat = request.form.get('latitude')
         lon = request.form.get('longitude')
-        # Admin-approved WFH only: checkbox alone does NOT bypass geofence
+        # Employee must check WFH box AND admin must have approved WFH
         work_from_home_checkbox = request.form.get('work_from_home') == '1'
+        confirm_office = request.form.get('confirm_office') == '1'  # Confirmation flag
         today_str = datetime.now().strftime('%Y-%m-%d')
         admin_approved_wfh = FirebaseWFHApproval.is_approved_for_date(employee_id, today_str)
-        work_from_home = admin_approved_wfh
-        if work_from_home_checkbox and not admin_approved_wfh:
-            flash('WFH not approved by admin for today. Proceeding with office sign-in.', 'error')
+        
+        # WFH only if: checkbox is checked AND admin approved
+        work_from_home = work_from_home_checkbox and admin_approved_wfh
+        
+        # Scenario 2: Admin approved but checkbox not checked - need confirmation
+        if admin_approved_wfh and not work_from_home_checkbox and not confirm_office:
+            flash('Admin has approved WFH, but you did not check the WFH box. Please confirm you want to sign in from office.', 'warning')
+            return render_template('employee_signin.html',
+                                 office_locations=Config.OFFICE_LOCATIONS,
+                                 office_lat=Config.OFFICE_LATITUDE,
+                                 office_lng=Config.OFFICE_LONGITUDE,
+                                 office_radius=Config.OFFICE_RADIUS_METERS,
+                                 admin_approved_wfh=admin_approved_wfh,
+                                 show_office_confirm=True,
+                                 confirm_message="Admin has approved WFH, but you're signing in from office. Continue?")
+        
+        # Scenario 3: Checkbox checked but admin not approved - need confirmation
+        if work_from_home_checkbox and not admin_approved_wfh and not confirm_office:
+            flash('WFH not approved by admin for today. Please confirm you want to sign in from office.', 'warning')
+            return render_template('employee_signin.html',
+                                 office_locations=Config.OFFICE_LOCATIONS,
+                                 office_lat=Config.OFFICE_LATITUDE,
+                                 office_lng=Config.OFFICE_LONGITUDE,
+                                 office_radius=Config.OFFICE_RADIUS_METERS,
+                                 admin_approved_wfh=admin_approved_wfh,
+                                 show_office_confirm=True,
+                                 confirm_message="WFH is not approved. You're signing in from office. Continue?")
         print(f"DEBUG Route: /employee/signin POST lat={lat} lon={lon} work_from_home={work_from_home}")
         
         # Enforce geofence for sign-in - only if not working from home
@@ -177,14 +181,14 @@ def employee_signin():
                 'sign_in_time': datetime.now(),
                 'sign_out_time': None,
                 'total_hours': None,
-                'work_location': 'home' if admin_approved_wfh else 'office',
-                'wfh_approved': admin_approved_wfh
+                'work_location': 'home' if work_from_home else 'office',
+                'wfh_approved': work_from_home
             })
         else:
             attendance = existing_attendance
             attendance.sign_in_time = datetime.now()
-            attendance.work_location = 'home' if admin_approved_wfh else 'office'
-            attendance.wfh_approved = admin_approved_wfh or getattr(existing_attendance, 'wfh_approved', False)
+            attendance.work_location = 'home' if work_from_home else 'office'
+            attendance.wfh_approved = work_from_home
         
         print(f"DEBUG: Attempting to save attendance for {employee_id} on {today}")
         if attendance.save():
@@ -196,11 +200,16 @@ def employee_signin():
         
         return redirect(url_for('employee_dashboard'))
     
+    # Check if admin has approved WFH for today
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    admin_approved_wfh = FirebaseWFHApproval.is_approved_for_date(current_user.employee_id, today_str)
+    
     return render_template('employee_signin.html', 
                          office_locations=Config.OFFICE_LOCATIONS,
                          office_lat=Config.OFFICE_LATITUDE, 
                          office_lng=Config.OFFICE_LONGITUDE, 
-                         office_radius=Config.OFFICE_RADIUS_METERS)
+                         office_radius=Config.OFFICE_RADIUS_METERS,
+                         admin_approved_wfh=admin_approved_wfh)
 
 @app.route('/employee/signout', methods=['GET', 'POST'])
 @login_required
@@ -408,42 +417,9 @@ def employee_logout():
 @app.route('/employee/change_password', methods=['GET', 'POST'])
 @login_required
 def employee_change_password():
-    """Allow an employee to change their own password"""
-    if not isinstance(current_user, FirebaseEmployee):
-        return redirect(url_for('employee_portal'))
-
-    if request.method == 'POST':
-        current_password = request.form.get('current_password', '')
-        new_password = request.form.get('new_password', '')
-        confirm_password = request.form.get('confirm_password', '')
-
-        # Validate inputs
-        if not current_password or not new_password or not confirm_password:
-            flash('Please fill in all password fields.', 'error')
-            return render_template('employee_change_password.html')
-
-        if not current_user.check_password(current_password):
-            flash('Current password is incorrect.', 'error')
-            return render_template('employee_change_password.html')
-
-        if new_password != confirm_password:
-            flash('New password and confirmation do not match.', 'error')
-            return render_template('employee_change_password.html')
-
-        if len(new_password) < 6:
-            flash('New password must be at least 6 characters long.', 'error')
-            return render_template('employee_change_password.html')
-
-        # Update password
-        current_user.password_hash = generate_password_hash(new_password)
-        if current_user.save():
-            flash('Your password has been changed successfully.', 'success')
-            return redirect(url_for('employee_dashboard'))
-        else:
-            flash('Error updating password. Please try again.', 'error')
-            return render_template('employee_change_password.html')
-
-    return render_template('employee_change_password.html')
+    # Password changes are managed in Firebase Authentication (not in-app)
+    flash('Password changes are disabled. Use "Forgot password" on the login page.', 'error')
+    return redirect(url_for('employee_dashboard'))
 
 @app.route('/employee/timesheet', methods=['GET', 'POST'])
 @login_required
@@ -509,22 +485,234 @@ def employee_timesheet():
                          recent_timesheets=recent_timesheets)
 
 # Admin routes
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/admin/login', methods=['GET'])
 def admin_login():
     """Admin login page"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        admin = FirebaseAdmin.find_by_username(username)
-        
-        if admin and admin.check_password(password):
-            login_user(admin)
-            return redirect(url_for('admin_dashboard'))
-        else:
-            flash('Invalid username or password', 'error')
-    
     return render_template('admin_login.html')
+
+@app.route('/auth/session_login', methods=['POST'])
+def auth_session_login():
+    """Verify Firebase ID token and create Flask session for employee/admin"""
+    try:
+        data = request.get_json() or {}
+        id_token = data.get('idToken')
+        user_type = data.get('userType')  # 'employee' | 'admin'
+
+        if not id_token or not user_type:
+            return jsonify({'success': False, 'message': 'Missing idToken or userType'}), 400
+
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get('email')
+        if not email:
+            return jsonify({'success': False, 'message': 'No email on Firebase user'}), 400
+
+        if user_type == 'employee':
+            service = get_firebase_service()
+            emp_data = service.get_employee_by_email(email)
+            if not emp_data:
+                return jsonify({'success': False, 'message': 'No employee mapped to this email'}), 404
+            employee = FirebaseEmployee(emp_data)
+            if not employee.is_active:
+                return jsonify({'success': False, 'message': 'Employee is inactive'}), 403
+            login_user(employee)
+            return jsonify({'success': True, 'redirect': url_for('employee_dashboard')})
+
+        if user_type == 'admin':
+            admin = FirebaseAdmin.find_by_username(email)
+            if not admin:
+                return jsonify({'success': False, 'message': 'No admin mapped to this email'}), 404
+            login_user(admin)
+            return jsonify({'success': True, 'redirect': url_for('admin_dashboard')})
+
+        return jsonify({'success': False, 'message': 'Invalid userType'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/auth/employee_precheck', methods=['POST'])
+def auth_employee_precheck():
+    """Check if an employee exists for the provided email (admin must have added them)."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip()
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'}), 400
+        service = get_firebase_service()
+        emp = service.get_employee_by_email(email)
+        if not emp:
+            return jsonify({'success': False, 'message': 'No employee found for this email. Contact admin.'}), 404
+        if not emp.get('is_active', True):
+            return jsonify({'success': False, 'message': 'Employee is inactive. Contact admin.'}), 403
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+def send_otp_email(email: str, otp: str) -> bool:
+    """Send OTP email to user"""
+    try:
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_password = os.environ.get('SMTP_PASSWORD', '')
+        from_email = os.environ.get('FROM_EMAIL', smtp_user)
+        smtp_security = os.environ.get('SMTP_SECURITY', 'STARTTLS').upper()  # STARTTLS, TLS, SSL, or NONE
+        
+        if not smtp_user or not smtp_password:
+            print("⚠️ SMTP not configured. OTP:", otp)
+            return False
+        
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = email
+        msg['Subject'] = 'Employee Account Verification OTP'
+        
+        body = f"""
+Hello,
+
+You have requested to create an account for the Employee Attendance System.
+
+Your verification OTP is: {otp}
+
+This OTP is valid for 15 minutes.
+
+If you did not request this, please ignore this email.
+
+Best regards,
+Attendance System Team
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Connect based on security mode
+        if smtp_security == 'SSL':
+            # SSL mode (usually port 465)
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+        elif smtp_security == 'TLS':
+            # TLS mode (usually port 587)
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+        elif smtp_security == 'STARTTLS':
+            # STARTTLS mode (usually port 587)
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+        else:
+            # No security (not recommended, usually port 25)
+            server = smtplib.SMTP(smtp_server, smtp_port)
+        
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ OTP email sent to {email}")
+        return True
+    except Exception as e:
+        print(f"❌ Error sending OTP email: {e}")
+        return False
+
+@app.route('/auth/send_signup_otp', methods=['POST'])
+def auth_send_signup_otp():
+    """Generate and send OTP for employee signup"""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip()
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'}), 400
+        
+        # Check if employee exists
+        service = get_firebase_service()
+        emp = service.get_employee_by_email(email)
+        if not emp:
+            return jsonify({'success': False, 'message': 'No employee found for this email. Contact admin.'}), 404
+        if not emp.get('is_active', True):
+            return jsonify({'success': False, 'message': 'Employee is inactive. Contact admin.'}), 403
+        
+        # Check if Firebase Auth user already exists
+        try:
+            firebase_auth.get_user_by_email(email)
+            return jsonify({'success': False, 'message': 'An account already exists for this email. Please login instead.'}), 409
+        except firebase_auth.UserNotFoundError:
+            pass  # User doesn't exist, continue with OTP
+        
+        # Generate and send OTP
+        otp = service.generate_otp(email)
+        email_sent = send_otp_email(email, otp)
+        
+        if not email_sent:
+            # If email failed, still return success but log OTP (for development)
+            print(f"⚠️ Email send failed. OTP for {email}: {otp}")
+            return jsonify({
+                'success': True, 
+                'message': 'OTP generated. Check console for OTP (email not configured).',
+                'otp': otp if os.environ.get('DEBUG_OTP', 'false').lower() == 'true' else None
+            })
+        
+        return jsonify({'success': True, 'message': 'OTP sent to your email'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/auth/verify_signup_otp', methods=['POST'])
+def auth_verify_signup_otp():
+    """Verify OTP for employee signup"""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip()
+        otp = (data.get('otp') or '').strip()
+        
+        if not email or not otp:
+            return jsonify({'success': False, 'message': 'Email and OTP are required'}), 400
+        
+        service = get_firebase_service()
+        if service.verify_otp(email, otp):
+            return jsonify({'success': True, 'message': 'OTP verified successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Invalid or expired OTP'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/auth/employee_signup', methods=['POST'])
+def auth_employee_signup():
+    """Finalize signup: verify token, ensure employee exists by email, then log them in."""
+    try:
+        data = request.get_json() or {}
+        id_token = data.get('idToken')
+        if not id_token:
+            return jsonify({'success': False, 'message': 'Missing idToken'}), 400
+
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get('email')
+        if not email:
+            return jsonify({'success': False, 'message': 'No email on Firebase user'}), 400
+
+        service = get_firebase_service()
+        emp_data = service.get_employee_by_email(email)
+        if not emp_data:
+            return jsonify({'success': False, 'message': 'No employee found for this email. Contact admin.'}), 404
+        employee = FirebaseEmployee(emp_data)
+        if not employee.is_active:
+            return jsonify({'success': False, 'message': 'Employee is inactive. Contact admin.'}), 403
+
+        login_user(employee)
+        return jsonify({'success': True, 'redirect': url_for('employee_dashboard')})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/auth/password_reset_link', methods=['POST'])
+def auth_password_reset_link():
+    """Generate a password reset link for the given email (server-side fallback)."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip()
+        continue_url = (data.get('continueUrl') or url_for('employee_login', _external=True))
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'}), 400
+
+        action_settings = firebase_auth.ActionCodeSettings(
+            url=continue_url,
+            handle_code_in_app=False,
+        )
+        link = firebase_auth.generate_password_reset_link(email, action_settings)
+        return jsonify({'success': True, 'link': link})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/admin/dashboard')
 @login_required
@@ -589,10 +777,8 @@ def admin_add_employee():
         address = request.form.get('address')
         emergency_contact = request.form.get('emergency_contact')
         emergency_contact_phone = request.form.get('emergency_contact_phone')
-        password = request.form.get('password')
-
         # Validate required fields
-        required_fields = [employee_id, name, email, mobile, department, position, hire_date, address, emergency_contact, emergency_contact_phone, password]
+        required_fields = [employee_id, name, email, mobile, department, position, hire_date, address, emergency_contact, emergency_contact_phone]
         if not all(required_fields):
             flash('All fields are required!', 'error')
             return render_template('admin_add_employee.html')
@@ -634,9 +820,6 @@ def admin_add_employee():
                     flash('Error uploading profile image. Please try again.', 'error')
                     return render_template('admin_add_employee.html')
 
-        # Hash the password
-        password_hash = generate_password_hash(password)
-
         # Create new employee
         new_employee = FirebaseEmployee({
             'employee_id': employee_id,
@@ -650,7 +833,7 @@ def admin_add_employee():
             'emergency_contact': emergency_contact,
             'emergency_contact_phone': emergency_contact_phone,
             'profile_image': profile_image_path,
-            'password_hash': password_hash,
+            'password_hash': '',
             'is_active': True
         })
 
@@ -748,9 +931,7 @@ def admin_edit_employee(employee_doc_id):
         employee.emergency_contact = emergency_contact
         employee.emergency_contact_phone = emergency_contact_phone
         
-        # Update password if provided
-        if password:
-            employee.password_hash = generate_password_hash(password)
+        # Password updates are disabled; managed via Firebase Auth
 
         # Handle profile image upload/removal
         import os

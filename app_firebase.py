@@ -5,6 +5,7 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 import math
+from firebase_admin import auth as firebase_auth
 
 # Firebase imports
 from firebase_models import FirebaseEmployee, FirebaseAdmin, FirebaseAttendance
@@ -83,41 +84,9 @@ def employee_portal():
                          office_lng=Config.OFFICE_LONGITUDE, 
                          office_radius=Config.OFFICE_RADIUS_METERS)
 
-@app.route('/employee/login', methods=['GET', 'POST'])
+@app.route('/employee/login', methods=['GET'])
 def employee_login():
     """Employee login functionality"""
-    if request.method == 'POST':
-        employee_id = request.form.get('employee_id')
-        password = request.form.get('password')
-        lat = request.form.get('latitude')
-        lon = request.form.get('longitude')
-        print(f"DEBUG Route: /employee/login POST lat={lat} lon={lon}")
-        
-        # Enforce geofence for employee login
-        if not is_within_office_geofence(lat, lon):
-            flash('Access denied: You are not within any office location.', 'error')
-            return render_template('employee_login.html', 
-                                 office_locations=Config.OFFICE_LOCATIONS,
-                                 office_lat=Config.OFFICE_LATITUDE, 
-                                 office_lng=Config.OFFICE_LONGITUDE, 
-                                 office_radius=Config.OFFICE_RADIUS_METERS)
-        
-        employee = FirebaseEmployee.find_by_employee_id(employee_id)
-        
-        if not employee or not employee.is_active or not employee.check_password(password):
-            flash('Invalid Employee ID or Password. Please check your credentials and try again.', 'error')
-            return render_template('employee_login.html', 
-                                 office_locations=Config.OFFICE_LOCATIONS,
-                                 office_lat=Config.OFFICE_LATITUDE, 
-                                 office_lng=Config.OFFICE_LONGITUDE, 
-                                 office_radius=Config.OFFICE_RADIUS_METERS)
-
-        # Login the employee
-        login_user(employee)
-        
-        flash(f'Welcome {employee.name}! You have successfully logged in.', 'success')
-        return redirect(url_for('employee_dashboard'))
-    
     return render_template('employee_login.html', 
                          office_locations=Config.OFFICE_LOCATIONS,
                          office_lat=Config.OFFICE_LATITUDE, 
@@ -369,22 +338,61 @@ def employee_change_password():
     return render_template('employee_change_password.html')
 
 # Admin routes
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/admin/login', methods=['GET'])
 def admin_login():
     """Admin login page"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        admin = FirebaseAdmin.find_by_username(username)
-        
-        if admin and admin.check_password(password):
-            login_user(admin)
-            return redirect(url_for('admin_dashboard'))
-        else:
-            flash('Invalid username or password', 'error')
-    
     return render_template('admin_login.html')
+
+
+@app.route('/auth/session_login', methods=['POST'])
+def auth_session_login():
+    """Verify Firebase ID token and create Flask session for employee/admin"""
+    try:
+        data = request.get_json() or {}
+        id_token = data.get('idToken')
+        user_type = data.get('userType')  # 'employee' | 'admin'
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+
+        if not id_token or not user_type:
+            return jsonify({'success': False, 'message': 'Missing idToken or userType'}), 400
+
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get('email')
+        uid = decoded.get('uid')
+
+        if not email:
+            return jsonify({'success': False, 'message': 'No email on Firebase user'}), 400
+
+        # Employees: enforce geofence check on login
+        if user_type == 'employee':
+            if not is_within_office_geofence(latitude, longitude):
+                return jsonify({'success': False, 'message': 'Access denied: outside office geofence'}), 403
+
+            # Map Firebase user to employee by email
+            service = get_firebase_service()
+            emp_data = service.get_employee_by_email(email)
+            if not emp_data:
+                return jsonify({'success': False, 'message': 'No employee mapped to this email'}), 404
+
+            employee = FirebaseEmployee(emp_data)
+            if not employee.is_active:
+                return jsonify({'success': False, 'message': 'Employee is inactive'}), 403
+
+            login_user(employee)
+            return jsonify({'success': True, 'redirect': url_for('employee_dashboard')})
+
+        # Admins: look up admin by username matching email
+        if user_type == 'admin':
+            admin = FirebaseAdmin.find_by_username(email)
+            if not admin:
+                return jsonify({'success': False, 'message': 'No admin mapped to this email'}), 404
+            login_user(admin)
+            return jsonify({'success': True, 'redirect': url_for('admin_dashboard')})
+
+        return jsonify({'success': False, 'message': 'Invalid userType'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
 
 @app.route('/admin/dashboard')
 @login_required

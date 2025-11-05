@@ -20,15 +20,42 @@
                     </p>
                     
                     <form method="POST" id="signinForm">
+                        <input type="hidden" name="confirm_office" id="confirm_office" value="0">
                         <div class="mb-3">
+                            {% if admin_approved_wfh %}
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>WFH Approved:</strong> Admin has approved Work From Home for today. Please check the box below if you're working from home.
+                            </div>
+                            {% endif %}
+                            
+                            {% if show_office_confirm %}
+                            <div class="alert alert-warning mb-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Confirm Office Sign-In:</strong> {{ confirm_message }}
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="confirmOfficeSignIn()">
+                                        <i class="fas fa-check me-1"></i>Yes, Sign In from Office
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.location.reload()">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="work_from_home" name="work_from_home" value="1">
+                                <input class="form-check-input" type="checkbox" id="work_from_home" name="work_from_home" value="1" {% if show_office_confirm %}disabled{% endif %}>
                                 <label class="form-check-label" for="work_from_home">
                                     <i class="fas fa-home me-2"></i>Work from Home Today
                                 </label>
                                 <div class="form-text">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Check this if you're working from home today
+                                    {% if admin_approved_wfh %}
+                                    Check this box to sign in as Work From Home (admin approved)
+                                    {% else %}
+                                    Check this if you're working from home today (requires admin approval)
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -36,7 +63,7 @@
                         <div class="d-grid gap-2">
                             <input type="hidden" name="latitude" id="latitude">
                             <input type="hidden" name="longitude" id="longitude">
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn btn-success btn-lg" {% if show_office_confirm %}disabled{% endif %}>
                                 <i class="fas fa-sign-in-alt me-2"></i>Sign In Now
                             </button>
                         </div>
@@ -53,17 +80,36 @@
     </div>
 </div>
 <script>
+function confirmOfficeSignIn() {
+  document.getElementById('confirm_office').value = '1';
+  document.getElementById('signinForm').submit();
+}
+
 document.getElementById('signinForm').addEventListener('submit', function(e) {
   const latInput = document.getElementById('latitude');
   const lonInput = document.getElementById('longitude');
+  const confirmOffice = document.getElementById('confirm_office').value === '1';
+  
+  // If already confirmed, proceed with geolocation
+  if (confirmOffice && latInput.value && lonInput.value) {
+    return; // Already has location, submit
+  }
+  
   if (latInput.value && lonInput.value) return;
+  
   e.preventDefault();
-  if (!navigator.geolocation) { alert('Enable location to sign in.'); return; }
+  if (!navigator.geolocation) { 
+    alert('Enable location to sign in.'); 
+    return; 
+  }
+  
   navigator.geolocation.getCurrentPosition(function(pos) {
     latInput.value = pos.coords.latitude;
     lonInput.value = pos.coords.longitude;
     document.getElementById('signinForm').submit();
-  }, function(err) { alert('Location error: ' + (err?.message||'unknown')); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+  }, function(err) { 
+    alert('Location error: ' + (err?.message||'unknown')); 
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
 });
 </script>
 {% endblock %} 
