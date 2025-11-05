@@ -514,6 +514,9 @@ def auth_session_login():
             employee = FirebaseEmployee(emp_data)
             if not employee.is_active:
                 return jsonify({'success': False, 'message': 'Employee is inactive'}), 403
+            # Enforce email verification for employees
+            if not decoded.get('email_verified', False):
+                return jsonify({'success': False, 'message': 'Please verify your email before logging in.'}), 403
             login_user(employee)
             return jsonify({'success': True, 'redirect': url_for('employee_dashboard')})
 
@@ -536,6 +539,14 @@ def auth_employee_precheck():
         email = (data.get('email') or '').strip()
         if not email:
             return jsonify({'success': False, 'message': 'Email is required'}), 400
+        
+        # Check if Firebase Auth user already exists
+        try:
+            firebase_auth.get_user_by_email(email)
+            return jsonify({'success': False, 'message': 'An account already exists for this email. Please login instead.'}), 409
+        except firebase_auth.UserNotFoundError:
+            pass  # User doesn't exist, continue with precheck
+        
         service = get_firebase_service()
         emp = service.get_employee_by_email(email)
         if not emp:
@@ -681,6 +692,9 @@ def auth_employee_signup():
         email = decoded.get('email')
         if not email:
             return jsonify({'success': False, 'message': 'No email on Firebase user'}), 400
+        # Require verified email before finalizing signup
+        if not decoded.get('email_verified', False):
+            return jsonify({'success': False, 'message': 'Email not verified. Please verify via the link sent to your inbox and then login.'}), 403
 
         service = get_firebase_service()
         emp_data = service.get_employee_by_email(email)

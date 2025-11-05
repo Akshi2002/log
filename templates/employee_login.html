@@ -91,6 +91,17 @@
     try {
       // Firebase email/password sign-in
       const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+      
+      // Check if email is verified. If not, stop here.
+      await cred.user.reload();
+      if (!cred.user.emailVerified) {
+        if (confirm('Your email is not verified. Resend verification email now?')) {
+          await cred.user.sendEmailVerification();
+          alert('Verification email sent. Please verify and then log in.');
+        }
+        await firebase.auth().signOut();
+        return;
+      }
       const idToken = await cred.user.getIdToken();
 
       // Call backend to create session (no geolocation needed for login)
@@ -147,84 +158,70 @@
     });
   }
 
-  // Sign Up flow with OTP verification
-  let signupEmail = '';
-  let signupOtpVerified = false;
-  
+  // Sign Up flow with Firebase email verification
   const signupBtn = document.getElementById('signupBtn');
   if (signupBtn) {
     signupBtn.addEventListener('click', async function() {
       try {
-        // Step 1: Get email
+        // Step 1: Get email and check if employee exists
         const emailInput = document.getElementById('email').value.trim();
-        signupEmail = emailInput || prompt('Enter your work email:') || '';
-        if (!signupEmail) { alert('Email is required'); return; }
+        const signupEmail = emailInput || prompt('Enter your work email:') || '';
+        if (!signupEmail) { 
+          alert('Email is required'); 
+          return; 
+        }
         
-        // Step 2: Send OTP
-        const otpResp = await fetch("{{ url_for('auth_send_signup_otp') }}", {
+        // Step 2: Precheck - verify employee exists in system
+        const precheckResp = await fetch("{{ url_for('auth_employee_precheck') }}", {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: signupEmail })
         });
-        const otpData = await otpResp.json();
+        const precheckData = await precheckResp.json();
         
-        if (!otpResp.ok || !otpData.success) {
-          alert(otpData.message || 'Failed to send OTP');
+        if (!precheckResp.ok || !precheckData.success) {
+          alert(precheckData.message || 'Employee not found. Contact admin.');
           return;
         }
         
-        // If DEBUG_OTP is enabled, show OTP in alert
-        if (otpData.otp) {
-          alert(`OTP sent! (DEBUG: ${otpData.otp})`);
-        } else {
-          alert('OTP sent to your email. Please check your inbox.');
-        }
-        
-        // Step 3: Get OTP from user
-        const otp = prompt('Enter the 6-digit OTP sent to your email:') || '';
-        if (!otp) { alert('OTP is required'); return; }
-        
-        // Step 4: Verify OTP
-        const verifyResp = await fetch("{{ url_for('auth_verify_signup_otp') }}", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: signupEmail, otp: otp })
-        });
-        const verifyData = await verifyResp.json();
-        
-        if (!verifyResp.ok || !verifyData.success) {
-          alert(verifyData.message || 'Invalid OTP');
+        // Step 3: Explain the process BEFORE asking for password
+        const confirmMsg = 'IMPORTANT: After creating your account, you will receive a verification email.\n\n' +
+                          'You MUST verify your email before you can log in.\n\n' +
+                          'Continue to create your account?';
+        if (!confirm(confirmMsg)) {
           return;
         }
         
-        signupOtpVerified = true;
-        alert('OTP verified successfully!');
-        
-        // Step 5: Get password
+        // Step 4: Get password
         const password = document.getElementById('password').value || prompt('Create a password (min 6 characters):') || '';
         if (!password || password.length < 6) {
           alert('Password must be at least 6 characters');
           return;
         }
         
-        // Step 6: Create Firebase Auth user
+        // Step 5: Create Firebase Auth user
         const cred = await firebase.auth().createUserWithEmailAndPassword(signupEmail, password);
-        const idToken = await cred.user.getIdToken();
-
-        // Step 7: Finalize signup (login the employee)
-        const resp = await fetch("{{ url_for('auth_employee_signup') }}", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken })
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data.success) {
-          alert(data.message || 'Signup failed');
-          return;
-        }
-        window.location.href = data.redirect;
+        
+        // Step 6: Send Firebase email verification
+        await cred.user.sendEmailVerification();
+        
+        // Step 7: Sign out immediately - user must verify email first
+        await firebase.auth().signOut();
+        
+        // Step 8: Clear form and show clear instructions
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        
+        alert('✅ Account created!\n\n📧 A verification email has been sent to ' + signupEmail + 
+              '\n\n⚠️ IMPORTANT: You MUST click the verification link in your email before you can log in.\n\n' +
+              'After verifying, return here and log in with your email and password.');
+        
       } catch (err) {
-        alert(err && err.message ? err.message : 'Signup failed');
+        if (err.code === 'auth/email-already-in-use') {
+          alert('An account already exists for this email. Please login instead.');
+        } else {
+          alert(err && err.message ? err.message : 'Signup failed');
+        }
       }
     });
   }
